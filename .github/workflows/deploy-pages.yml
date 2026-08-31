@@ -32,7 +32,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Build
-        run: pnpm build -- --base=/agent-kit/
+        run: pnpm build
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
