@@ -1,0 +1,5 @@
+/* Module-level content measures */
+.prompt-page-stage .prompt-showcase{width:100%;max-width:1024px;margin-left:auto;margin-right:auto}.prompt-page-stage .state-item,.prompt-page-stage .prompt-state-card{width:100%;max-width:1024px;margin-left:auto;margin-right:auto}
+.output-page-stage .hero-demo{display:flex;justify-content:center;align-items:stretch}.output-page-stage .output-stream{width:100%;max-width:1000px;margin-left:auto;margin-right:auto;border-left:1px solid var(--line);border-right:1px solid var(--line)}.output-page-stage .message-flow{width:100%;max-width:1000px}.output-page-stage .output-composer{width:calc(100% - 48px);max-width:952px}
+@media(max-width:1050px){.prompt-page-stage .prompt-showcase{max-width:calc(100% - 24px)}.output-page-stage .output-stream{max-width:100%;border-left:0;border-right:0}}
+@media(max-width:600px){.prompt-page-stage .prompt-showcase{max-width:100%}.output-page-stage .output-composer{width:calc(100% - 28px)}}
