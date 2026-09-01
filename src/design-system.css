@@ -1,6 +1,7 @@
+@import './source-han-sans.css';
 /* ShuLan design foundations — the single source of truth used by every page. */
 :root{
-  --font-ui:'Alibaba PuHuiTi','Microsoft YaHei UI','Microsoft YaHei',system-ui,sans-serif;--font-code:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --font-ui:'Source Han Sans SC VF','Microsoft YaHei UI','Microsoft YaHei',system-ui,sans-serif;--font-code:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
   --space-1:2px;--space-2:4px;--space-3:6px;--space-4:8px;--space-5:10px;--space-6:12px;--space-7:14px;--space-8:16px;--space-10:20px;--space-12:24px;--space-18:36px;--space-24:48px;--space-32:64px;--space-48:96px;--space-64:128px;
   --radius-tiny:6px;--radius-control:10px;--radius-card-sm:12px;--radius-card:16px;--radius-card-lg:24px;--radius-container:32px;--radius-capsule:999px;
   --type-display:600 42px/48px var(--font-ui);--type-h1:600 24px/32px var(--font-ui);--type-h2:600 20px/28px var(--font-ui);--type-h3:600 17px/24px var(--font-ui);--type-label-lg:600 15px/20px var(--font-ui);--type-label:500 14px/20px var(--font-ui);--type-label-sm:600 12px/16px var(--font-ui);--type-body-lg:400 20px/30px var(--font-ui);--type-body:400 14px/22px var(--font-ui);--type-body-sm:400 12px/18px var(--font-ui);--type-code:400 12px/18px var(--font-code);

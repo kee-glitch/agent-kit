@@ -1,12 +1,11 @@
-# 阿里巴巴普惠体网页字体
+# 思源黑体网页字体
 
-将已获得合法授权的 WOFF2 文件放在此目录，并使用以下文件名：
+项目本地托管 Adobe Source Han Sans 2.005 简体中文版可变字体，并按字符范围加载：
 
-- `AlibabaPuHuiTi-3-55-Regular.woff2`：400
-- `AlibabaPuHuiTi-3-65-Medium.woff2`：500
-- `AlibabaPuHuiTi-3-75-SemiBold.woff2`：600
-- `AlibabaPuHuiTi-3-85-Bold.woff2`：700
+- `SourceHanSansSC-VF-base.woff2`：拉丁字母、数字、标点和基础符号，约 156 KB。
+- `SourceHanSansSC-VF-common.woff2`：GB2312 常用简体中文，约 3.1 MB。
+- `SourceHanSansSC-VF.ttf.woff2`：完整扩展字库，仅出现生僻字时加载，约 13.5 MB。
 
-`src/styles.css` 已通过 `@font-face` 引用这些路径。字体文件缺失时，界面会回退到微软雅黑和系统无衬线字体。
+字体家族名为 `Source Han Sans SC VF`，支持 `200–900` 可变字重。精确的 `unicode-range` 声明位于 `src/source-han-sans.css`，由 `scripts/subset-source-han.py` 生成；使用 `--force` 可重新裁剪已有分片。
 
-请使用品牌方提供或团队确认授权的字体版本。不要从来源不明的镜像下载字体二进制文件。
+授权文件保存在 `source-han-sans/LICENSE.txt`；字体加载失败时回退到微软雅黑和系统无衬线字体。

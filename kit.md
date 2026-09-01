@@ -21,11 +21,11 @@
 - 优先复用现有 React 组件、CSS 类和设计令牌，避免复制组件或硬编码已有值。
 - 颜色必须使用 `--color-*` 语义令牌或项目已有别名，不得在业务组件中随意新增十六进制、RGB 或 HSL 色值。
 - 间距、圆角、字体和阴影必须优先使用 `src/design-system.css` 中的 `--space-*`、`--radius-*`、`--type-*` 和 `--shadow-*`。
-- 全局界面字体统一使用阿里巴巴普惠体，CSS 家族名固定为 `Alibaba PuHuiTi`，覆盖中文、西文、数字与标点；不得继续把 `Inter` 或 `Noto Sans SC` 作为主界面字体。
-- 网页字体必须使用 WOFF2 格式，自托管于 `public/fonts/`，通过 `@font-face` 引入并设置 `font-display: swap`；禁止依赖 Google Fonts 或来源不明的第三方字体 CDN。
+- 全局界面字体统一使用思源黑体简体中文版，CSS 家族名固定为 `Source Han Sans SC VF`，覆盖中文、西文、数字与标点；不得继续把 `Inter` 或 `Noto Sans SC` 作为主界面字体。
+- 网页字体使用 Adobe Source Han Sans 2.005 本地文件，并按 `base / common / extended` 三级 `unicode-range` 加载：基础字符约 156 KB、GB2312 常用中文约 3.1 MB，完整扩展字库仅在出现生僻字时加载；不得依赖外部字体 CDN。
 - 字重映射固定为：正文 400、普通控件与标签 500、标题与强调信息 600、品牌或少量强强调 700。不得声明未提供字体文件的字重，避免浏览器生成伪粗体。
 - 代码、设计令牌值、快捷键和需要字符对齐的数据继续使用 `--font-code` 等宽字体。
-- 界面字体回退顺序固定为：`Alibaba PuHuiTi`、`Microsoft YaHei UI`、`Microsoft YaHei`、`system-ui`、`sans-serif`。
+- 界面字体回退顺序固定为：`Source Han Sans SC VF`、`Microsoft YaHei UI`、`Microsoft YaHei`、`system-ui`、`sans-serif`。
 - 图标统一使用 `lucide-react`。不得使用 Emoji、文字字符或自制 SVG 冒充界面图标；品牌标识等已有专用 SVG 除外。
 - 保持现有的轻盈、克制、高信息清晰度风格，不擅自添加渐变、玻璃拟态、霓虹色、夸张阴影或不一致的大圆角。
 - 新组件必须覆盖必要的默认、悬停、按下、聚焦、禁用、加载、空、成功和错误状态。
@@ -47,7 +47,7 @@
 
 1. 对照 Agent Kit 页面检查布局、颜色、排版、间距、圆角、阴影、图标和交互一致性。
 2. 检查浅色与深色主题（涉及主题的页面）。
-3. 在浏览器开发者工具中确认正文的实际渲染字体为 `Alibaba PuHuiTi`，并确认 WOFF2 请求无 404；仅声明 `font-family` 不算完成字体接入。
+3. 在浏览器开发者工具中确认正文的实际渲染字体为 `Source Han Sans SC VF`，常规中文页面只请求 `base` 与 `common` 两个本地 WOFF2，扩展字库不得无条件加载；同时确认请求无 404、页面没有外部字体请求。
 4. 检查常见窄屏宽度、键盘操作和必要状态。
 5. 在本目录运行 `pnpm build`；如果环境使用 npm，则运行 `npm run build`。
 6. 若能启动页面，进行浏览器视觉检查；不得只以“构建成功”代替视觉检查。
