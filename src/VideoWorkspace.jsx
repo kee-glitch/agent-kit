@@ -1,8 +1,8 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react'
 import {
-  ArrowLeft, ArrowRight, Box, Check, ChevronDown, CircleAlert, Clock3,
-  FileText, Film, Image, Layers3, Library, Link2, LoaderCircle, Mic2,
-  Package, Play, Plus, RefreshCw, Search, Settings2, ShieldAlert, Sparkles, Upload, UserRound,
+  ArrowLeft, ArrowRight, Box, Captions, Check, ChevronDown, CircleAlert, Clock3,
+  Copy, FileText, Film, Image, Layers3, Library, Link2, LoaderCircle, Lock, Mic2,
+  Package, Pencil, Play, Plus, RefreshCw, Search, Settings2, ShieldAlert, Sparkles, Unlock, Upload, UserRound,
   Video, WandSparkles, X
 } from 'lucide-react'
 import './video-workspace.css'
@@ -55,13 +55,24 @@ const briefOptions = {
   goal: ['促进购买转化', '建立产品认知', '解释核心卖点', '建立用户信任', '展示使用效果', '宣传新品上市', '推广优惠活动', '引导关注或互动']
 }
 
+const subtitleStyles = [
+  { id: 'pop-in', name: '弹出式字幕', meta: '重点词放大弹出', image: `${import.meta.env.BASE_URL}subtitle-previews/pop-in.png` },
+  { id: 'white-card', name: '白底黑字字幕', meta: '白色色块底板 · 清晰易读', image: `${import.meta.env.BASE_URL}subtitle-previews/white-card.png` },
+  { id: 'comment-reply', name: '引用评论字幕', meta: '评论卡片与回复内容', image: `${import.meta.env.BASE_URL}subtitle-previews/comment-reply.png` },
+  { id: 'ktv-lyrics', name: 'KTV 歌词字幕', meta: '逐词变色高亮', image: `${import.meta.env.BASE_URL}subtitle-previews/ktv-lyrics.png` },
+  { id: 'outlined-white', name: '黑描边白字字幕', meta: '通用口播字幕', image: `${import.meta.env.BASE_URL}subtitle-previews/outlined-white.png` }
+]
+
+const subtitleFonts = ['自动匹配', '经典粗体', '运动斜体', '厚重无衬线', '紧凑标题体', '窄体大字']
+
 const shootingPreferenceGroups = [
+  ['产品表现', ['手部操作', '开箱拆封', '核心功能演示', '使用步骤展示', '使用效果展示', '使用效果对比', '材质细节', '尺寸比例展示', '360 度展示', '便携收纳展示', '多场景使用', '配件组合展示', '包装与清单展示', '品牌标识特写']],
+  ['人物表现', ['正对镜头口播', '侧面对话', '采访回答', '边走边说', '边用边讲', '情景演绎', '自然抓拍', '无台词表演', '情绪反应', '多人互动', '局部出镜', '画外音配合']],
   ['景别构图', ['产品微距', '人物特写', '半身近景', '全身中景', '环境全景', '中心构图', '三分构图', '对称构图', '留白构图']],
   ['视角机位', ['平视机位', '第一视角', '自拍视角', '俯拍视角', '低机位仰拍', '过肩视角', '桌面顶拍', '贴地机位']],
-  ['运镜方式', ['手持跟拍', '平行跟拍', '固定机位', '缓慢推近', '缓慢拉远', '横向摇摄', '升降运镜', '环绕展示', '焦点转移', '浅景深跟焦']],
-  ['节奏表现', ['前后对比', '慢动作', '延时摄影', '速度渐变', '快速转场', '甩镜转场', '匹配剪辑', '定格强调', '分屏对比', '一镜到底']],
-  ['产品表现', ['手部操作', '开箱拆封', '材质细节', '360 度展示']],
-  ['人物表现', ['正对镜头口播', '侧面对话', '自然抓拍']]
+  ['运镜倾向', ['手持跟拍', '平行跟拍', '固定机位', '缓慢推近', '缓慢拉远', '横向摇摄', '升降运镜', '环绕运镜']],
+  ['焦点表现', ['焦点转移', '浅景深跟焦', '主体锁焦', '前景虚化', '背景虚化']],
+  ['节奏表现', ['前后对比剪辑', '慢动作', '延时摄影', '速度渐变', '快速转场', '甩镜转场', '匹配剪辑', '定格强调', '分屏对比', '一镜到底']]
 ]
 
 const productCatalog = [
@@ -78,16 +89,7 @@ const marketingGroups = [
   { name: '日本精致生活人群', summary: '偏好小巧设计与生活仪式感的都市用户', targetAudience: '25–39 岁、重视居家品质和整洁收纳的日本都市生活人群', painPoint: '传统咖啡设备占空间、步骤复杂，容易破坏紧凑空间的整洁感', result: '用小巧器具完成具有仪式感的日常冲泡，并轻松收纳', originalSellingPoint: '小巧收纳、简洁设计、操作方便', buyerContent: '不占台面空间，也能每天享受认真冲泡咖啡的片刻', materialDirection: '极简桌面、安静冲泡、材质细节和收纳前后画面' }
 ]
 
-const hardPreferenceConflicts = [
-  ['固定机位', '手持跟拍'], ['固定机位', '平行跟拍'], ['固定机位', '缓慢推近'],
-  ['固定机位', '缓慢拉远'], ['固定机位', '横向摇摄'], ['固定机位', '升降运镜'],
-  ['固定机位', '环绕展示'], ['缓慢推近', '缓慢拉远'], ['第一视角', '自拍视角'],
-  ['一镜到底', '快速转场'], ['一镜到底', '甩镜转场'], ['一镜到底', '匹配剪辑'],
-  ['一镜到底', '分屏对比']
-]
-
 const preferenceGroupOf = item => shootingPreferenceGroups.find(([, items]) => items.includes(item))?.[0]
-const findPreferenceConflict = items => hardPreferenceConflicts.find(pair => pair.every(item => items.includes(item)))
 
 function CustomSelect({ icon: Icon, label, value, defaultValue, options, onChange, className = '', optionDescriptions = {}, optionImages = {} }) {
   const [internalValue, setInternalValue] = useState(defaultValue ?? options[0])
@@ -134,16 +136,33 @@ function BriefSelect(props) {
   return <CustomSelect {...props}/>
 }
 
+function SubtitleStylePicker({ value, onChange, font, onFontChange }) {
+  const [open, setOpen] = useState(false)
+  const [hoveredStyle, setHoveredStyle] = useState('')
+  const rootRef = useRef(null)
+  const selected = subtitleStyles.find(style => style.id === value)
+  const hoveredPreset = subtitleStyles.find(style => style.id === hoveredStyle)
+  useEffect(() => {
+    const close = event => { if (!rootRef.current?.contains(event.target)) setOpen(false) }
+    document.addEventListener('pointerdown', close)
+    return () => document.removeEventListener('pointerdown', close)
+  }, [])
+  return <div className="video-field subtitle-field" ref={rootRef}><span>字幕</span><div className={`subtitle-picker ${open ? 'is-open' : ''}`}><button type="button" className="subtitle-picker-trigger" aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen(current => !current)} onKeyDown={event => { if (event.key === 'Escape') setOpen(false) }}><Captions/><span><strong>{selected?.name || '关闭字幕'}</strong><small>{selected ? `${selected.meta} · ${font}` : '成片不嵌入字幕'}</small></span><ChevronDown/></button>{open && <div className="subtitle-picker-menu" role="listbox" aria-label="字幕样式" onMouseLeave={() => setHoveredStyle('')}><button type="button" role="option" aria-selected={!value} className={`subtitle-style-option ${!value ? 'selected' : ''}`} onMouseEnter={() => setHoveredStyle('')} onFocus={() => setHoveredStyle('')} onClick={() => { onChange(''); setOpen(false) }}><span><strong>关闭字幕</strong><small>成片不嵌入字幕</small></span>{!value && <Check/>}</button>{subtitleStyles.map(style => <button type="button" role="option" aria-selected={style.id === value} className={`subtitle-style-option ${style.id === value ? 'selected' : ''}`} onMouseEnter={() => setHoveredStyle(style.id)} onFocus={() => setHoveredStyle(style.id)} onClick={() => onChange(style.id)} key={style.id}><span><strong>{style.name}</strong><small>{style.meta}</small></span>{style.id === value && <Check/>}</button>)}{value && <section className="subtitle-font-panel"><header><div><strong>字幕字体</strong><small>选择内嵌字幕使用的字体</small></div></header><div>{subtitleFonts.map(option => <button type="button" className={font === option ? 'selected' : ''} onMouseEnter={() => setHoveredStyle('')} onClick={() => onFontChange(option)} key={option}>{option}{font === option && <Check/>}</button>)}</div></section>}{hoveredPreset && <aside className="subtitle-hover-preview" aria-hidden="true"><img src={hoveredPreset.image} alt=""/><div><strong>{hoveredPreset.name}</strong><span>{hoveredPreset.meta}</span></div></aside>}</div>}</div></div>
+}
+
 function BriefPanel() {
   const [productSource, setProductSource] = useState(briefOptions.product[0])
-  const [selectedProductName, setSelectedProductName] = useState('请选择商品')
-  const [selectedMarketingGroup, setSelectedMarketingGroup] = useState('请选择营销组别')
-  const [productImages, setProductImages] = useState([])
+  const [selectedProductName, setSelectedProductName] = useState('AeroPress Go 便携咖啡器')
+  const [selectedMarketingGroup, setSelectedMarketingGroup] = useState('美国年轻通勤女性')
+  const [productImages, setProductImages] = useState(productCatalog[0].images)
   const [productDragging, setProductDragging] = useState(false)
   const [productImagesLoading, setProductImagesLoading] = useState(false)
   const [productImagesUploading, setProductImagesUploading] = useState(false)
   const [pendingProductImageCount, setPendingProductImageCount] = useState(0)
   const [previewProductImage, setPreviewProductImage] = useState(null)
+  const [selectedDuration, setSelectedDuration] = useState('45 秒')
+  const [subtitleStyle, setSubtitleStyle] = useState('outlined-white')
+  const [subtitleFont, setSubtitleFont] = useState('自动匹配')
   const [shootingPreferences, setShootingPreferences] = useState(['产品微距', '手持跟拍'])
   const [preferenceHint, setPreferenceHint] = useState('')
   const productImageInput = useRef(null)
@@ -199,6 +218,7 @@ function BriefPanel() {
   const usesCommodityAssets = productSource !== '自由创作'
   const commodityLibraryName = productSource === '团队商品' ? '团队商品库' : '个人商品库'
   const activeMarketingGroup = marketingGroups.find(group => group.name === selectedMarketingGroup)
+  const recommendedPreferenceLimit = ({ '15 秒': 6, '30 秒': 8, '45 秒': 10, '60 秒': 10, '90 秒': 12, '自定义时长': 12 })[selectedDuration] || 10
   return <div className="video-form-grid">
     <CustomSelect icon={Package} label="商品来源" value={productSource} options={briefOptions.product} onChange={changeProductSource} className={productSource === '自由创作' ? 'span-2' : ''}/>
     {usesCommodityAssets && <CustomSelect icon={Package} label="商品" value={selectedProductName} options={productCatalog.map(product => product.name)} optionImages={Object.fromEntries(productCatalog.map(product => [product.name, product.images[0]]))} onChange={productName => { const product = productCatalog.find(item => item.name === productName) || productCatalog[0]; productImages.forEach(image => image.startsWith('blob:') && URL.revokeObjectURL(image)); setSelectedProductName(product.name); setSelectedMarketingGroup('请选择营销组别'); loadCatalogImages(product) }}/>} 
@@ -206,20 +226,20 @@ function BriefPanel() {
     <div className={`product-attachments span-2 ${productDragging ? 'is-dragging' : ''} ${productImagesLoading || productImagesUploading ? 'is-loading' : ''}`} tabIndex="0" onDragEnter={event => { event.preventDefault(); if (!productImagesLoading && !productImagesUploading) setProductDragging(true) }} onDragOver={event => event.preventDefault()} onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget)) setProductDragging(false) }} onDrop={event => { event.preventDefault(); setProductDragging(false); addProductImages(event.dataTransfer.files) }} onPaste={event => addProductImages(event.clipboardData.files)} aria-busy={productImagesLoading || productImagesUploading} aria-label={usesCommodityAssets ? '商品素材附件' : '创作参考图片'}><input ref={productImageInput} hidden type="file" accept="image/*" multiple onChange={event => { addProductImages(event.target.files); event.target.value = '' }}/><div className="product-attachments-heading">{productImagesLoading || productImagesUploading ? <LoaderCircle className="product-loading-icon"/> : <Upload/>}<div><span>{usesCommodityAssets ? '商品素材附件' : '创作参考图片'}</span><small>{productImagesLoading ? `正在从${commodityLibraryName}加载图片…` : productImagesUploading ? `正在上传 ${pendingProductImageCount} 张图片…` : usesCommodityAssets ? `${productImages.length} 张图片 · 已引用${commodityLibraryName}素材，可继续添加、删除或拖拽粘贴` : productImages.length ? `${productImages.length} 张图片 · 将作为自由创作参考，可继续拖拽或粘贴` : '不引用商品库图片，支持点击、拖拽或粘贴图片'}</small></div><button type="button" disabled={productImagesLoading || productImagesUploading} onClick={() => productImageInput.current?.click()}>{productImagesLoading ? '加载中' : productImagesUploading ? '上传中' : '选择图片'}</button></div>{productImagesLoading ? <div className="product-attachment-skeletons" aria-hidden="true">{[1,2,3,4].map(item => <i key={item}/>)}</div> : (productImages.length > 0 || productImagesUploading) && <div className="product-attachment-strip" aria-label={usesCommodityAssets ? '商品素材附件列表' : '创作参考图片列表'}>{productImages.map((image, index) => <div className="product-attachment-item" key={`${image}-${index}`}><button type="button" className="product-attachment-preview" onClick={() => setPreviewProductImage({ image, index })} aria-label={`查看图片附件 ${index + 1}`}><img src={image} alt="" referrerPolicy="no-referrer"/></button><button type="button" className="product-attachment-remove" onClick={() => { if (image.startsWith('blob:')) URL.revokeObjectURL(image); setProductImages(value => value.filter((_, itemIndex) => itemIndex !== index)) }} aria-label={`删除图片附件 ${index + 1}`}><X/></button></div>)}{productImagesUploading && Array.from({ length: pendingProductImageCount }).map((_, index) => <span className="product-upload-skeleton" role="status" aria-label={`图片 ${index + 1} 上传中`} key={`uploading-${index}`}><LoaderCircle/><small>上传中</small></span>)}</div>}</div>
     <label className="span-2"><span>视频需求</span><textarea defaultValue="为便携咖啡器制作一条真实生活化的产品种草视频。突出早晨节省时间、容易清洗和随身携带，前三秒需要有强烈反差。"/></label>
     <BriefSelect label="目标平台" defaultValue="TikTok" options={briefOptions.platform}/>
-    <BriefSelect icon={Clock3} label="成片目标时长" defaultValue="45 秒" options={briefOptions.duration}/>
+    <BriefSelect icon={Clock3} label="成片目标时长" value={selectedDuration} options={briefOptions.duration} onChange={setSelectedDuration}/>
     <BriefSelect label="画面比例" defaultValue="9:16 竖屏" options={briefOptions.ratio}/>
     <BriefSelect label="目标市场与语言" defaultValue="美国 · English (US)" options={briefOptions.market}/>
     <BriefSelect label="营销目标" defaultValue="促进购买转化" options={briefOptions.goal}/>
     <BriefSelect label="视频形式" defaultValue="生活方式短片" options={briefOptions.format}/>
     <BriefSelect label="视觉风格" defaultValue="原生自然" options={['原生自然', '明亮清新', '温暖治愈', '冷静科技', '高级纪实', '极简商业', '高饱和活力', '美式复古 90s', '现代 3D 动画']}/>
-    <fieldset className="shooting-preferences span-2"><legend>拍摄偏好 <span>将按镜头分配</span></legend><div className="preference-count"><span>选择希望使用的拍摄手法</span><b className={shootingPreferences.length >= 9 ? 'limit' : ''}>已选 {shootingPreferences.length} 项</b></div><div className="preference-groups">{shootingPreferenceGroups.map(([group, items]) => <section key={group}><strong>{group}</strong><div>{items.map(item => {
+    <SubtitleStylePicker value={subtitleStyle} onChange={setSubtitleStyle} font={subtitleFont} onFontChange={setSubtitleFont}/>
+    <fieldset className="shooting-preferences span-2"><legend>拍摄偏好 <span>整片级偏好池</span></legend><div className="preference-count"><span>为整条视频选择偏好，生成分镜时将按镜头择优分配</span><b className={shootingPreferences.length > recommendedPreferenceLimit ? 'limit' : ''}>已选 {shootingPreferences.length} 项</b></div><div className="preference-groups">{shootingPreferenceGroups.map(([group, items]) => <section key={group}><strong>{group}</strong><div>{items.map(item => {
       const selected = shootingPreferences.includes(item)
       return <button type="button" className={selected ? 'selected' : ''} aria-pressed={selected} onClick={() => {
         if (selected) {
           const next = shootingPreferences.filter(entry => entry !== item)
           setShootingPreferences(next)
-          const conflict = findPreferenceConflict(next)
-          setPreferenceHint(conflict ? `“${conflict[0]}”和“${conflict[1]}”不能用于同一镜头，系统会自动分配到不同镜头。` : '')
+          setPreferenceHint('')
           return
         }
         const group = preferenceGroupOf(item)
@@ -227,20 +247,61 @@ function BriefPanel() {
         if (groupCount >= 2) { setPreferenceHint(`“${group}”最多选择 2 项，请先取消一项。`); return }
         const next = [...shootingPreferences, item]
         setShootingPreferences(next)
-        const conflict = findPreferenceConflict(next)
-        setPreferenceHint(conflict ? `“${conflict[0]}”和“${conflict[1]}”不能用于同一镜头，系统会自动分配到不同镜头。` : '')
+        setPreferenceHint('')
       }} key={item}>{selected && <Check/>}{item}</button>
-    })}</div></section>)}</div><div className="preference-rule"><Layers3/><span>可跨类别组合；同类最多2项。生成分镜时，每个镜头只分配一种主要运镜。</span></div>{shootingPreferences.length >= 6 && <div className={`preference-volume-note ${shootingPreferences.length >= 9 ? 'strong' : ''}`}><CircleAlert/><span>{shootingPreferences.length >= 9 ? `当前已选择 ${shootingPreferences.length} 项，偏好较多可能削弱主要视觉方向，系统仍会按镜头择优采用。` : `当前已选择 ${shootingPreferences.length} 项，系统会结合镜头数量择优采用，部分偏好可能不会使用。`}</span></div>}{preferenceHint && <div className="preference-warning"><CircleAlert/>{preferenceHint}</div>}</fieldset>{previewProductImage && <div className="product-image-modal" role="dialog" aria-modal="true" aria-label="图片附件预览" onClick={() => setPreviewProductImage(null)}><div className="product-image-modal-content" onClick={event => event.stopPropagation()}><header><div><strong>图片附件预览</strong><span>{previewProductImage.index + 1} / {productImages.length}</span></div><button type="button" onClick={() => setPreviewProductImage(null)} aria-label="关闭图片预览"><X/></button></header><div><img src={previewProductImage.image} alt={`图片附件 ${previewProductImage.index + 1} 大图预览`} referrerPolicy="no-referrer"/></div></div></div>}
+    })}</div></section>)}</div><div className="preference-rule"><Layers3/><span>可跨类别组合，同类最多选择 2 项；系统会在生成分镜时处理镜头级冲突，每个镜头只采用一种主要运镜。</span></div>{shootingPreferences.length > recommendedPreferenceLimit && <div className="preference-volume-note strong"><CircleAlert/><span>{selectedDuration}建议选择不超过 {recommendedPreferenceLimit} 项；当前已选择 {shootingPreferences.length} 项，系统仍会按镜头择优采用，未采用的偏好不会强行加入。</span></div>}{preferenceHint && <div className="preference-warning"><CircleAlert/>{preferenceHint}</div>}</fieldset>{previewProductImage && <div className="product-image-modal" role="dialog" aria-modal="true" aria-label="图片附件预览" onClick={() => setPreviewProductImage(null)}><div className="product-image-modal-content" onClick={event => event.stopPropagation()}><header><div><strong>图片附件预览</strong><span>{previewProductImage.index + 1} / {productImages.length}</span></div><button type="button" onClick={() => setPreviewProductImage(null)} aria-label="关闭图片预览"><X/></button></header><div><img src={previewProductImage.image} alt={`图片附件 ${previewProductImage.index + 1} 大图预览`} referrerPolicy="no-referrer"/></div></div></div>}
   </div>
 }
 
-function ScriptPanel() {
+const initialScriptSections = {
+  summary: '清晨，一位赶着上班的年轻女性发现常去的咖啡店还没有营业。她回到公寓，用 AeroPress Go 快速完成冲泡，简单清理后将器具收进通勤包，拿着咖啡轻松出门。故事用等待咖啡店开门与随时自己冲泡的反差，突出省时、易清洁和便携三个核心利益。',
+  hook: 'A closed coffee shop door cuts immediately to a fresh cup being pressed at home: “The coffee shop isn’t even open, and mine is already ready.”',
+  oral: 'I used to leave twenty minutes early just to wait for coffee. Now I make mine before I head out. I add coffee and hot water, give it a quick stir, then press directly into the cup. Cleanup is simple, and everything packs back into my bag when I’m done. I can use it at home, at the office, or while traveling, without bringing a bulky machine. My morning coffee fits into my routine instead of slowing it down. If you want an easier way to make coffee wherever the day takes you, take a look at the AeroPress Go.',
+  cta: 'Make your morning coffee on your schedule. Explore the AeroPress Go.'
+}
+
+function ScriptPanel({ onNotice, onChange }) {
+  const [sections, setSections] = useState(initialScriptSections)
+  const [editing, setEditing] = useState('')
+  const [locked, setLocked] = useState(['summary'])
+  const sectionMeta = [
+    ['summary', '故事梗概', '中文策划说明'],
+    ['hook', '前三秒钩子', 'English (US)'],
+    ['oral', '完整口播文案', '100 words · 约 33 秒'],
+    ['cta', '行动引导 CTA', 'English (US)']
+  ]
+  const updateSection = (id, value) => { setSections(current => ({ ...current, [id]: value })); onChange?.() }
+  const rewriteSection = id => {
+    if (locked.includes(id)) return
+    const suffix = id === 'summary' ? ' 全片保持自然生活化表达，并将产品操作作为主要叙事动作。' : ''
+    updateSection(id, `${initialScriptSections[id]}${suffix}`)
+    onNotice?.(`${sectionMeta.find(item => item[0] === id)?.[1]}已重新生成`)
+  }
+  const copySection = async id => {
+    await navigator.clipboard?.writeText(sections[id])
+    onNotice?.(`${sectionMeta.find(item => item[0] === id)?.[1]}已复制`)
+  }
+  const rewriteUnlocked = () => {
+    setSections(current => Object.fromEntries(Object.entries(current).map(([id, value]) => [id, locked.includes(id) ? value : initialScriptSections[id]])))
+    setEditing('')
+    onChange?.()
+    onNotice?.(`已重新生成 ${sectionMeta.length - locked.length} 项未锁定内容`)
+  }
   return <div className="script-layout">
-    <section className="script-main"><div className="section-heading"><div><small>剧本标题</small><h3>咖啡店还没开，我已经喝完了</h3></div><button><RefreshCw/>重新生成</button></div>
-      <div className="script-block"><span>前三秒钩子</span><p>清晨，她把一杯刚买的咖啡倒进水槽。镜头立刻切到桌上的便携咖啡器：“每天排队买咖啡，真的没必要。”</p></div>
-      <div className="script-block"><span>完整口播</span><p>以前赶早班，我每天都要多留二十分钟买咖啡。现在只要把咖啡粉和热水放进去，按压几十秒，一杯口感干净的咖啡就完成了。用完冲一下就能收进包里，办公室、旅行都能带。早晨的时间，终于不用浪费在排队上。</p></div>
+    <section className="script-main">
+      <div className="script-source-summary"><div><small>生成依据</small><strong>AeroPress Go · TikTok · 45 秒 · 美国英语 · 生活方式短片</strong></div><button type="button" onClick={() => onNotice?.('请返回创作需求修改生成参数')}>修改需求</button></div>
+      <div className="section-heading"><div><small>剧本标题 · English (US)</small><h3>The Coffee Shop Isn’t Open, and Mine Is Already Ready</h3></div><button type="button" onClick={rewriteUnlocked}><RefreshCw/>重新生成未锁定内容</button></div>
+      {sectionMeta.map(([id, label, meta]) => <article className={`script-block ${locked.includes(id) ? 'is-locked' : ''}`} key={id}>
+        <header><span>{label}<small>{meta}</small></span><div className="script-block-actions">
+          <button type="button" onClick={() => setEditing(editing === id ? '' : id)} aria-label={`编辑${label}`}><Pencil/></button>
+          <button type="button" onClick={() => copySection(id)} aria-label={`复制${label}`}><Copy/></button>
+          <button type="button" disabled={locked.includes(id)} onClick={() => rewriteSection(id)} aria-label={`重新生成${label}`}><RefreshCw/></button>
+          <button type="button" onClick={() => setLocked(current => current.includes(id) ? current.filter(item => item !== id) : [...current, id])} aria-label={`${locked.includes(id) ? '解锁' : '锁定'}${label}`}>{locked.includes(id) ? <Lock/> : <Unlock/>}</button>
+        </div></header>
+        {editing === id ? <textarea value={sections[id]} onChange={event => updateSection(id, event.target.value)} onBlur={() => setEditing('')} autoFocus aria-label={label}/> : <p>{sections[id]}</p>}
+      </article>)}
     </section>
-    <aside className="script-insights"><h3>创作策略</h3><dl><div><dt>叙事公式</dt><dd>HPDO</dd></div><div><dt>角色立场</dt><dd>真实用户</dd></div><div><dt>视觉风格</dt><dd>原生生活化</dd></div><div><dt>口播估时</dt><dd>41.8 秒</dd></div></dl><div className="duration-check"><Check/><span><b>时长校验通过</b><small>为产品演示预留 3.2 秒</small></span></div></aside>
+    <aside className="script-insights"><section><h3>需求匹配</h3><ul className="requirement-checks"><li><Check/><span><b>核心卖点</b><small>省时、易清洁、便携均已覆盖</small></span></li><li><Check/><span><b>前三秒反差</b><small>关门咖啡店与成品咖啡对比</small></span></li><li><Check/><span><b>目标语言</b><small>口播为 English (US)</small></span></li><li><Layers3/><span><b>拍摄偏好</b><small>产品微距、手持跟拍将在分镜应用</small></span></li></ul></section><section><h3>创作策略</h3><dl><div><dt>叙事结构</dt><dd>钩子 → 痛点 → 演示 → CTA</dd></div><div><dt>角色立场</dt><dd>真实用户</dd></div><div><dt>视觉风格</dt><dd>原生生活化</dd></div></dl></section><section><h3>时长检查</h3><dl><div><dt>目标时长</dt><dd>45 秒</dd></div><div><dt>口播词数</dt><dd>100 words</dd></div><div><dt>预计口播</dt><dd>约 33 秒</dd></div><div><dt>演示余量</dt><dd>约 12 秒</dd></div></dl><div className="duration-check"><Check/><span><b>时长校验通过</b><small>口播与产品演示均有充足空间</small></span></div></section></aside>
   </div>
 }
 
@@ -280,10 +341,11 @@ export default function VideoWorkspace() {
   const [bound, setBound] = useState(false)
   const [generated, setGenerated] = useState([0, 1])
   const [notice, setNotice] = useState('')
-  const panels = useMemo(() => [<BriefPanel/>, <ScriptPanel/>, <AssetsPanel bound={bound} onBind={() => { setBound(true); setNotice('场景资产已生成并绑定') }}/>, <StoryboardPanel model={model} setModel={setModel}/>, <GeneratePanel generated={generated} onGenerate={id => { setGenerated(value => [...value, id]); setNotice(`片段 ${id + 1} 已生成`) }}/>, <ExportPanel/>], [model, generated, bound])
+  const [scriptConfirmed, setScriptConfirmed] = useState(false)
+  const panels = useMemo(() => [<BriefPanel/>, <ScriptPanel onNotice={setNotice} onChange={() => setScriptConfirmed(false)}/>, <AssetsPanel bound={bound} onBind={() => { setBound(true); setNotice('场景资产已生成并绑定') }}/>, <StoryboardPanel model={model} setModel={setModel}/>, <GeneratePanel generated={generated} onGenerate={id => { setGenerated(value => [...value, id]); setNotice(`片段 ${id + 1} 已生成`) }}/>, <ExportPanel/>], [model, generated, bound])
   const [, , label] = steps[active]
   return <main className="video-workspace"><Workflow active={active} onChange={setActive}/><section className="video-work-area">
-    <header className="video-work-header"><div><span>快捷生成视频 / 新建项目</span><h1>{label}</h1></div><div><button className="quiet-button">保存草稿</button><button className="primary-button" onClick={() => setActive(value => Math.min(steps.length - 1, value + 1))}>{active === steps.length - 1 ? '导出设置' : '继续'}<ArrowRight/></button></div></header>
+    <header className="video-work-header"><div><span>快捷生成视频 / 新建项目</span><h1>{label}</h1></div><div><button className="quiet-button">保存草稿</button><button className="primary-button" onClick={() => { if (active === 1) { setScriptConfirmed(true); setNotice('剧本已确认，可用于准备核心资产') }; setActive(value => Math.min(steps.length - 1, value + 1)) }}>{active === steps.length - 1 ? '导出设置' : active === 1 && !scriptConfirmed ? '确认剧本并继续' : '继续'}<ArrowRight/></button></div></header>
     <div className="video-stage"><div className="stage-intro"><div><span>步骤 {active + 1} / {steps.length}</span><h2>{label}</h2><p>{['描述本次视频的目标、产品与投放环境。','确认故事、口播和营销方向后再准备资产。','锁定影响人物、产品和场景一致性的核心资源。','根据模型时长上限，把完整剧本转换为可执行片段。','逐段生成、检查并只重试不满意的部分。','统一声音、字幕和转场，输出完整成片。'][active]}</p></div>{active > 0 && <button className="back-button" onClick={() => setActive(active - 1)}><ArrowLeft/>上一步</button>}</div>
       <div className="stage-content">{panels[active]}</div>
     </div>
