@@ -1,29 +1,65 @@
-import React, { useEffect, useId, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useLayoutEffect, useId, useMemo, useRef, useState } from 'react'
 import {
   ArrowLeft, ArrowRight, Box, Captions, Check, ChevronDown, CircleAlert, Clock3,
   Copy, FileText, Film, Image, Languages, Layers3, Library, Link2, LoaderCircle, Lock, Mic2,
-  MonitorPlay, Package, Palette, Pencil, Play, Plus, Ratio, RefreshCw, Search, Settings2, ShieldAlert, Sparkles, Target, Unlock, Upload, UserRound,
+  MonitorPlay, MoreHorizontal, Package, Palette, Pencil, PersonStanding, Play, Plus, Ratio, RefreshCw, Search, Settings2, ShieldAlert, Shirt, Sparkles, Target, Trash2, Unlock, Upload, UserRound,
   Video, WandSparkles, X
 } from 'lucide-react'
+import './form-components.css'
 import './video-workspace.css'
 import { mockPreviewImages } from './AssetWorkspace'
+import StoryPanel from './StoryPanel'
+import CreativeHome from './CreativeHome'
 
 const steps = [
   ['brief', FileText, '创作需求', '已完成'],
-  ['script', Sparkles, '剧本', '已完成'],
-  ['assets', Library, '核心资产', '待确认'],
-  ['storyboard', Layers3, '分镜脚本', '未开始'],
-  ['generate', Video, '视频生成', '未开始'],
-  ['export', Film, '合成导出', '未开始']
+  ['script', Sparkles, '剧本创作', '已完成'],
+  ['assets', Library, '资源绑定', '待确认'],
+  ['preferences', Settings2, '拍摄偏好', '未开始'],
+  ['storyboard', Layers3, '故事面板', '未开始'],
+  ['generate', Video, '视频生成', '未开始']
 ]
 
-const assets = [
-  { id: 1, type: '产品', name: 'AeroPress Go 便携咖啡器', meta: '产品库 · 6 张参考图', icon: Package, state: 'bound' },
-  { id: 2, type: '人物', name: '城市通勤女性 01', meta: '人物库 · 已锁定形象', icon: UserRound, state: 'bound' },
-  { id: 3, type: '服饰', name: '燕麦色通勤套装', meta: '服饰库 · 已锁定', icon: Box, state: 'bound' },
-  { id: 4, type: '场景', name: '现代公寓厨房', meta: '需要生成场景参考图', icon: Image, state: 'missing' },
-  { id: 5, type: '声音', name: '自然、轻快的女性声线', meta: '声音库 · 中文普通话', icon: Mic2, state: 'bound' }
+function createDemoAudio() {
+  const rate=8000, count=rate*2, bytes=new Uint8Array(44+count*2), view=new DataView(bytes.buffer)
+  const write=(offset,text)=>{for(let i=0;i<text.length;i++)bytes[offset+i]=text.charCodeAt(i)}
+  write(0,'RIFF');view.setUint32(4,36+count*2,true);write(8,'WAVE');write(12,'fmt ');view.setUint32(16,16,true);view.setUint16(20,1,true);view.setUint16(22,1,true);view.setUint32(24,rate,true);view.setUint32(28,rate*2,true);view.setUint16(32,2,true);view.setUint16(34,16,true);write(36,'data');view.setUint32(40,count*2,true)
+  for(let i=0;i<count;i++)view.setInt16(44+i*2,Math.sin(2*Math.PI*(i<rate?440:660)*i/rate)*6000*Math.sin(Math.PI*(i%rate)/rate)**2,true)
+  return 'data:audio/wav;base64,'+btoa(Array.from(bytes,byte=>String.fromCharCode(byte)).join(''))
+}
+
+const initialCoreAssets = [
+  { id: 1, type: '主体', title: '拟人化三维卡通骷髅开箱博主', description: '成年人体型，象牙白骨骼，眼窝深邃但具有清晰情绪变化，颌骨活动自然，手部骨节完整，动作带有疲惫、迟疑和真实用户生成内容的生活感。声线为成年意大利用户：前段音量偏低、气息略沉、语速稍快并带疲惫感；中段放缓且稳定清楚；结尾加快但吐字完整，保留自然呼吸和轻微停顿。', thumbnail: mockPreviewImages[6], skill: '人物一致性', icon: UserRound, state: 'bound' },
+  { id: 2, type: '服饰', title: '深灰色针织家居套装', description: '深灰色针织家居上衣，柔软棉质纹理，宽松剪裁，搭配深色居家长裤，整体呈现长期居家办公的简洁生活风格。', thumbnail: mockPreviewImages[2], skill: '服饰参考生成', icon: Box, state: 'bound' },
+  { id: 3, type: '场景', title: '米兰现代公寓室内', description: '前景为木质办公桌与办公用品，中景为骷髅角色和办公椅，远景为简洁墙面、餐桌、花瓶与暖色花朵；空间从冷蓝灰紫办公区域逐渐过渡到米白暖粉的餐桌开箱区域。', thumbnail: mockPreviewImages[3], skill: '场景参考生成', icon: Image, state: 'bound' },
+  { id: 4, type: '道具', title: 'WindBoss Cortisol-A 粉色瓶', description: '九十粒日间配方，圆柱形塑料瓶，粉色瓶身与清晰稳定的产品标签，默认位于暖色餐桌中央。', thumbnail: mockPreviewImages[4], skill: '商品主图生成', icon: Package, state: 'bound' },
+  { id: 5, type: '声音', title: '轻柔提示音 · 音频 Demo', description: '用于预览音频播放的合成提示音，点击缩略图展开播放器后试听。', thumbnail: '', mediaType: 'audio', mediaSrc: createDemoAudio(), skill: '', icon: Mic2, state: 'bound' },
+  { id: 6, type: '视频', title: '竖屏视频 · Demo', description: '竖屏视频示例素材，悬停预览，点击播放。', thumbnail: '/demo-videos/demo-video-01.mp4', mediaType: 'video', skill: '', icon: Video, state: 'bound' }
 ]
+
+const coreAssetSkills=['商品主图生成','人物一致性','服饰参考生成','场景参考生成','通用视觉生成']
+const assetTypeOptions=[['产品',Package],['主体',PersonStanding],['人物',UserRound],['服饰',Shirt],['场景',Image],['声音',Mic2],['视频',Video],['道具',Box]]
+
+function AssetTypeSelect({ value, onChange }) {
+  const [open,setOpen]=useState(false)
+  const rootRef=useRef(null)
+  const selected=assetTypeOptions.find(([name])=>name===value)||assetTypeOptions[0]
+  const SelectedIcon=selected[1]
+  useEffect(()=>{if(!open)return;const close=event=>{if(!rootRef.current?.contains(event.target))setOpen(false)};const closeOnEscape=event=>{if(event.key==='Escape')setOpen(false)};document.addEventListener('pointerdown',close);document.addEventListener('keydown',closeOnEscape);return()=>{document.removeEventListener('pointerdown',close);document.removeEventListener('keydown',closeOnEscape)}},[open])
+  return <div className={`asset-type-select ${open?'is-open':''}`} ref={rootRef}><button type="button" className="asset-type-trigger" onClick={()=>setOpen(current=>!current)} aria-haspopup="listbox" aria-expanded={open}><SelectedIcon/><span>{value}</span><ChevronDown/></button>{open&&<div className="asset-type-menu" role="listbox" aria-label="资产类型">{assetTypeOptions.map(([name,Icon])=><button type="button" role="option" aria-selected={value===name} className={value===name?'active':''} onClick={()=>{onChange(name);setOpen(false)}} key={name}><Icon/><span>{name}</span>{value===name&&<Check/>}</button>)}</div>}</div>
+}
+
+function CoreSkillSelect({ value, onChange }) {
+  const options=['暂未绑定技能',...coreAssetSkills]
+  const selectedValue=value||'暂未绑定技能'
+  const [open,setOpen]=useState(false)
+  const rootRef=useRef(null)
+  const currentIndex=Math.max(0,options.indexOf(selectedValue))
+  useEffect(()=>{const close=event=>{if(!rootRef.current?.contains(event.target))setOpen(false)};document.addEventListener('pointerdown',close);return()=>document.removeEventListener('pointerdown',close)},[])
+  const choose=option=>{onChange(option==='暂未绑定技能'?'':option);setOpen(false)}
+  const onKeyDown=event=>{if(event.key==='Escape'){setOpen(false);return}if(event.key==='Enter'||event.key===' '){event.preventDefault();setOpen(current=>!current);return}if(event.key==='ArrowDown'||event.key==='ArrowUp'){event.preventDefault();const step=event.key==='ArrowDown'?1:-1;choose(options[(currentIndex+step+options.length)%options.length])}}
+  return <div className={`single-select core-skill-single-select ${open?'open':''}`} ref={rootRef}><button type="button" className="single-select-trigger" aria-label="绑定技能" aria-haspopup="listbox" aria-expanded={open} onClick={()=>setOpen(current=>!current)} onKeyDown={onKeyDown}><i className="single-select-leading"><WandSparkles/></i><span>{selectedValue}</span><ChevronDown/></button>{open&&<div className="single-select-menu" role="listbox" aria-label="绑定技能">{options.map(option=><button type="button" role="option" aria-selected={option===selectedValue} className={option===selectedValue?'selected':''} key={option} onClick={()=>choose(option)}><span>{option}</span>{option===selectedValue&&<Check/>}</button>)}</div>}</div>
+}
 
 const shotCopy = [
   ['钩子', '早晨赶时间，她把昂贵咖啡倒进水槽', '人物、厨房、咖啡杯'],
@@ -34,15 +70,31 @@ const shotCopy = [
 ]
 
 function Workflow({ active, onChange }) {
-  return <aside className="video-flow-nav" aria-label="视频创作步骤">
+  return <aside className="video-flow-nav horizontal-steps" aria-label="视频创作步骤">
     <div className="video-flow-title"><WandSparkles/><div><strong>快捷生成视频</strong><span>竖屏产品种草视频</span></div></div>
-    <nav>{steps.map(([id, Icon, label, state], index) => <button className={active === index ? 'active' : index < active ? 'done' : ''} onClick={() => onChange(index)} key={id}>
-      <span className="flow-step-icon">{index < active ? <Check/> : <Icon/>}</span>
-      <span><b>{label}</b><small>{index < active ? '已完成' : state}</small></span>
-      <em>{String(index + 1).padStart(2, '0')}</em>
-    </button>)}</nav>
+    <nav>{steps.map(([id, Icon, label], index) => {
+      const status = index < active ? '已完成' : index === active ? '创作中' : '未创作'
+      const statusClass = index < active ? 'done' : index === active ? 'active' : 'pending'
+      return <button className={statusClass} aria-label={`${label}，${status}`} title={`${label} · ${status}`} aria-current={index === active ? 'step' : undefined} onClick={() => onChange(index)} key={id}>
+      <span className="flow-step-icon">{index < active ? <Check/> : index === active ? <Clock3/> : <Icon/>}</span>
+      <span className="flow-step-copy"><b>{label}</b></span>
+    </button>})}</nav>
     <div className="video-flow-help"><CircleAlert/><span>所有内容均为 Demo 数据，可自由切换步骤查看。</span></div>
   </aside>
+}
+
+const initialCreationTasks=[
+  ['task-1','WindBoss 日夜双瓶种草视频','故事面板 · 刚刚',mockPreviewImages[4]],
+  ['task-2','便携咖啡器产品演示','创作需求 · 10:45',mockPreviewImages[1]],
+  ['task-3','深色针织家居服短片','核心资产 · 昨天',mockPreviewImages[2]],
+  ['task-4','米兰公寓生活方式视频','拍摄偏好 · 周一',mockPreviewImages[3]],
+  ['task-5','新品竖屏广告方案','视频生成 · 8 月 28 日',mockPreviewImages[6]]
+]
+
+function CreationTaskHistory({ tasks, selected, onSelect, onNew }) {
+  const [query,setQuery]=useState('')
+  const shown=tasks.filter(([,title,meta])=>`${title} ${meta}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
+  return <aside className="creation-task-history" aria-label="任务记录"><header><strong>任务记录</strong></header><button type="button" className="creation-task-new" onClick={()=>{setQuery('');onNew()}}><Plus/>新建任务</button><label className="creation-task-search"><Search/><input value={query} onChange={event=>setQuery(event.target.value)} placeholder="搜索任务" aria-label="搜索任务记录"/></label><div className="creation-task-list">{shown.map(([id,title,meta,thumbnail])=><article className={selected===id?'active':''} key={id}><button type="button" onClick={()=>onSelect(id)}><img src={thumbnail} alt=""/><span><b>{title}</b><small>{meta}</small></span></button><button type="button" aria-label={`${title}更多操作`}><MoreHorizontal/></button></article>)}{!shown.length&&<div className="creation-task-empty">没有匹配的任务</div>}</div></aside>
 }
 
 const briefOptions = {
@@ -132,10 +184,29 @@ function CustomSelect({ icon: Icon, label, value, defaultValue, options, onChang
   const [query, setQuery] = useState('')
   const rootRef = useRef(null)
   const searchRef = useRef(null)
+  const menuRef = useRef(null)
+  const [placement, setPlacement] = useState({ above: false, height: 280 })
   const listId = useId()
   const currentValue = value ?? internalValue
   const searchable = options.length >= 4
   const filteredOptions = query.trim() ? options.filter(option => `${option} ${optionDescriptions[option] || ''}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())) : options
+  useLayoutEffect(() => {
+    if (!open) return
+    const update = () => {
+      const trigger = rootRef.current?.querySelector('.video-custom-select-trigger')
+      if (!trigger || !menuRef.current) return
+      const rect = trigger.getBoundingClientRect()
+      const below = Math.max(0, window.innerHeight - rect.bottom - 12)
+      const above = Math.max(0, rect.top - 12)
+      const desired = Math.min(280, menuRef.current.scrollHeight)
+      const upward = below < desired && above > below
+      setPlacement({ above: upward, height: Math.min(280, upward ? above : below) })
+    }
+    update()
+    window.addEventListener('resize', update)
+    window.addEventListener('scroll', update, true)
+    return () => { window.removeEventListener('resize', update); window.removeEventListener('scroll', update, true) }
+  }, [open, query])
   useEffect(() => {
     const close = event => { if (!rootRef.current?.contains(event.target)) { setOpen(false); setQuery('') } }
     document.addEventListener('pointerdown', close)
@@ -162,7 +233,7 @@ function CustomSelect({ icon: Icon, label, value, defaultValue, options, onChang
         if (event.key === 'ArrowDown') { event.preventDefault(); move(1) }
         if (event.key === 'ArrowUp') { event.preventDefault(); move(-1) }
       }}>{optionImages[currentValue] ? <img className="video-select-trigger-thumb" src={optionImages[currentValue]} alt="" referrerPolicy="no-referrer"/> : Icon && <Icon/>}<span>{currentValue}</span><ChevronDown/></button>
-      {open && <div className="video-custom-select-menu" id={listId} role="listbox" aria-label={label}>{searchable && <div className="video-custom-select-search"><Search/><input ref={searchRef} value={query} onChange={event => setQuery(event.target.value)} onKeyDown={event => { if (event.key === 'Escape') { setOpen(false); setQuery('') } }} placeholder={`搜索${label}`} aria-label={`搜索${label}`}/>{query && <button type="button" onClick={() => { setQuery(''); searchRef.current?.focus() }} aria-label="清空搜索"><X/></button>}</div>}<div className="video-custom-select-options">{filteredOptions.map(option => <button type="button" role="option" aria-selected={option === currentValue} className={`${option === currentValue ? 'selected' : ''} ${optionDescriptions[option] ? 'has-description' : ''}`} onClick={() => choose(option)} key={option}>{optionImages[option] && <img className="video-select-option-thumb" src={optionImages[option]} alt="" referrerPolicy="no-referrer"/>}<span className="option-copy"><span>{option}</span>{optionDescriptions[option] && <small>{optionDescriptions[option]}</small>}</span>{option === currentValue && <Check/>}</button>)}{filteredOptions.length === 0 && <div className="video-custom-select-empty">未找到匹配选项</div>}</div></div>}
+      {open && <div ref={menuRef} style={{top:placement.above?'auto':'calc(100% + var(--space-2))',bottom:placement.above?'calc(100% + var(--space-2))':'auto',maxHeight:placement.height}} className="video-custom-select-menu" id={listId} role="listbox" aria-label={label}>{searchable && <div className="video-custom-select-search"><Search/><input ref={searchRef} value={query} onChange={event => setQuery(event.target.value)} onKeyDown={event => { if (event.key === 'Escape') { setOpen(false); setQuery('') } }} placeholder={`搜索${label}`} aria-label={`搜索${label}`}/>{query && <button type="button" onClick={() => { setQuery(''); searchRef.current?.focus() }} aria-label="清空搜索"><X/></button>}</div>}<div className="video-custom-select-options">{filteredOptions.map(option => <button type="button" role="option" aria-selected={option === currentValue} className={`${option === currentValue ? 'selected' : ''} ${optionDescriptions[option] ? 'has-description' : ''}`} onClick={() => choose(option)} key={option}>{optionImages[option] && <img className="video-select-option-thumb" src={optionImages[option]} alt="" referrerPolicy="no-referrer"/>}<span className="option-copy"><span>{option}</span>{optionDescriptions[option] && <small>{optionDescriptions[option]}</small>}</span>{option === currentValue && <Check/>}</button>)}{filteredOptions.length === 0 && <div className="video-custom-select-empty">未找到匹配选项</div>}</div></div>}
     </div>
   </div>
 }
@@ -185,27 +256,34 @@ function SubtitleStylePicker({ value, onChange, font, onFontChange }) {
   return <div className="video-field subtitle-field" ref={rootRef}><span>字幕</span><div className={`subtitle-picker ${open ? 'is-open' : ''}`}><button type="button" className="subtitle-picker-trigger" aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen(current => !current)} onKeyDown={event => { if (event.key === 'Escape') setOpen(false) }}><Captions/><span><strong>{selected?.name || '关闭字幕'}</strong><small>{selected ? `${selected.meta} · ${font}` : '成片不嵌入字幕'}</small></span><ChevronDown/></button>{open && <div className="subtitle-picker-menu" role="listbox" aria-label="字幕样式" onMouseLeave={() => setHoveredStyle('')}><button type="button" role="option" aria-selected={!value} className={`subtitle-style-option ${!value ? 'selected' : ''}`} onMouseEnter={() => setHoveredStyle('')} onFocus={() => setHoveredStyle('')} onClick={() => { onChange(''); setOpen(false) }}><span><strong>关闭字幕</strong><small>成片不嵌入字幕</small></span>{!value && <Check/>}</button>{subtitleStyles.map(style => <button type="button" role="option" aria-selected={style.id === value} className={`subtitle-style-option ${style.id === value ? 'selected' : ''}`} onMouseEnter={() => setHoveredStyle(style.id)} onFocus={() => setHoveredStyle(style.id)} onClick={() => onChange(style.id)} key={style.id}><span><strong>{style.name}</strong><small>{style.meta}</small></span>{style.id === value && <Check/>}</button>)}{value && <section className="subtitle-font-panel"><header><div><strong>字幕字体</strong><small>选择内嵌字幕使用的字体</small></div></header><div>{subtitleFonts.map(option => <button type="button" className={font === option ? 'selected' : ''} onMouseEnter={() => setHoveredStyle('')} onClick={() => onFontChange(option)} key={option}>{option}{font === option && <Check/>}</button>)}</div></section>}{hoveredPreset && <aside className="subtitle-hover-preview" aria-hidden="true"><img src={hoveredPreset.image} alt=""/><div><strong>{hoveredPreset.name}</strong><span>{hoveredPreset.meta}</span></div></aside>}</div>}</div></div>
 }
 
-function BriefPanel({ onChange }) {
-  const [productSource, setProductSource] = useState(briefOptions.product[0])
-  const [selectedProductName, setSelectedProductName] = useState('AeroPress Go 便携咖啡器')
-  const [selectedMarketingGroup, setSelectedMarketingGroup] = useState('美国城市混合办公人群')
-  const [productImages, setProductImages] = useState(productCatalog[0].images)
+const creationEntryOptions = [
+  ['free', Sparkles, '自由创作', '从一个想法开始，不绑定商品库，自由上传参考素材。'],
+  ['personal', Package, '个人商品创作', '选择个人商品库中的商品，快速带入商品与素材信息。'],
+  ['team', Library, '团队商品创作', '使用团队共享商品与品牌资产，保持多人协作一致。']
+]
+
+function CreationStartPage({ onChoose }) {
+  return <section className="creation-start-page"><div className="creation-orbit" aria-hidden="true"><i className="orbit-spark"><Sparkles/></i><i className="orbit-frame"><Image/></i><i className="orbit-film"><Film/></i><i className="orbit-product"><Package/></i><i className="orbit-pencil"><Pencil/></i></div><div className="creation-start-heading"><span>SHULAN · CREATIVE STUDIO</span><h2>让想法，<br/>成为下一支好作品。</h2><p>从灵感出发，或让你的商品成为主角。<br/>选择一个起点，把故事交给创作。</p></div><div className="creation-entry-grid">{creationEntryOptions.map(([id,Icon,title,description],index)=><button type="button" onClick={()=>onChoose(id)} key={id}><span className="creation-entry-index">0{index+1}</span><i><Icon/></i><strong>{title}</strong><small>{description}</small><span className="creation-entry-action">开始创作<ArrowRight/></span></button>)}</div></section>
+}
+
+function BriefPanel({ onChange, blank = false, initialMode = '' }) {
+  const initialProductSource=initialMode==='free'?'自由创作':initialMode==='team'?'团队商品':initialMode==='personal'?'个人商品':blank?'请选择商品来源':briefOptions.product[0]
+  const [productSource, setProductSource] = useState(initialProductSource)
+  const [selectedProductName, setSelectedProductName] = useState(blank ? '请选择商品' : 'AeroPress Go 便携咖啡器')
+  const [selectedMarketingGroup, setSelectedMarketingGroup] = useState(blank ? '请选择营销组别' : '美国城市混合办公人群')
+  const [productImages, setProductImages] = useState(blank ? [] : productCatalog[0].images)
   const [productDragging, setProductDragging] = useState(false)
   const [productImagesLoading, setProductImagesLoading] = useState(false)
   const [productImagesUploading, setProductImagesUploading] = useState(false)
   const [pendingProductImageCount, setPendingProductImageCount] = useState(0)
   const [previewProductImage, setPreviewProductImage] = useState(null)
-  const [selectedDuration, setSelectedDuration] = useState('45 秒')
-  const [platform, setPlatform] = useState('TikTok')
-  const [ratio, setRatio] = useState('9:16 竖屏')
-  const [market, setMarket] = useState('美国 · English (US)')
-  const [speechRate, setSpeechRate] = useState('标准 · 150 WPM')
-  const [videoRequirement, setVideoRequirement] = useState('制作一条 45 秒 TikTok 竖屏英文短视频，面向需要在通勤、家庭与办公室之间切换的美国城市上班族。前三秒用普通办公室咖啡与新鲜冲煮形成反差；随后展示整套器具从随行杯中取出、加入咖啡粉与热水、搅拌按压、清洁并重新收纳。只使用可验证卖点：8 oz 单杯容量、整套可收纳进随行杯、微滤减少咖啡渣、冲煮与清洁约 2 分钟。')
-  const [subtitleStyle, setSubtitleStyle] = useState('outlined-white')
-  const [subtitleFont, setSubtitleFont] = useState('自动匹配')
-  const [shootingPreferences, setShootingPreferences] = useState(['核心功能演示', '便携收纳展示', '边用边讲', '自然抓拍', '产品微距', '半身近景', '桌面顶拍', '固定机位', '主体锁焦', '前后对比剪辑'])
-  const [preferenceHint, setPreferenceHint] = useState('')
-  const [creativeDirection, setCreativeDirection] = useState({ goal: '解释核心卖点', format: '产品功能演示', style: '原生自然' })
+  const [selectedDuration, setSelectedDuration] = useState(blank ? '请选择时长' : '45 秒')
+  const [platform, setPlatform] = useState(blank ? '请选择目标平台' : 'TikTok')
+  const [ratio, setRatio] = useState(blank ? '请选择画面比例' : '9:16 竖屏')
+  const [market, setMarket] = useState(blank ? '请选择市场与语言' : '美国 · English (US)')
+  const [speechRate, setSpeechRate] = useState(blank ? '请选择口播语速' : '标准 · 150 WPM')
+  const [videoRequirement, setVideoRequirement] = useState(blank ? '' : '制作一条 45 秒 TikTok 竖屏英文短视频，面向需要在通勤、家庭与办公室之间切换的美国城市上班族。前三秒用普通办公室咖啡与新鲜冲煮形成反差；随后展示整套器具从随行杯中取出、加入咖啡粉与热水、搅拌按压、清洁并重新收纳。只使用可验证卖点：8 oz 单杯容量、整套可收纳进随行杯、微滤减少咖啡渣、冲煮与清洁约 2 分钟。')
+  const [creativeDirection, setCreativeDirection] = useState(blank ? { goal: '请选择营销目标', format: '请选择视频形式', style: '请选择视觉风格' } : { goal: '解释核心卖点', format: '产品功能演示', style: '原生自然' })
   const [aiGenerating, setAiGenerating] = useState('')
   const [aiGenerated, setAiGenerated] = useState('')
   const aiGenerationTimer = useRef(null)
@@ -222,18 +300,6 @@ function BriefPanel({ onChange }) {
       setCreativeDirection({ goal, format, style })
       setAiGenerating('')
       setAiGenerated('business')
-    }, 800)
-  }
-  const generateShootingPreferences = () => {
-    if (aiGenerating) return
-    setAiGenerating('preferences')
-    setAiGenerated('')
-    aiGenerationTimer.current = window.setTimeout(() => {
-      const context = `${videoRequirement} ${activeMarketingGroup?.buyerContent || ''} ${activeMarketingGroup?.materialDirection || ''}`
-      setShootingPreferences(recommendShootingPreferences(creativeDirection.format, context, selectedDuration))
-      setPreferenceHint('')
-      setAiGenerating('')
-      setAiGenerated('preferences')
     }, 800)
   }
   const productImageInput = useRef(null)
@@ -286,11 +352,10 @@ function BriefPanel({ onChange }) {
     setProductImagesLoading(false)
     setProductImages([])
   }
-  const usesCommodityAssets = productSource !== '自由创作'
+  const usesCommodityAssets = productSource !== '请选择商品来源' && productSource !== '自由创作'
   const commodityLibraryName = productSource === '团队商品' ? '团队商品库' : '个人商品库'
   const activeMarketingGroup = marketingGroups.find(group => group.name === selectedMarketingGroup)
-  const recommendedPreferenceLimit = preferenceLimitForDuration(selectedDuration)
-  useEffect(() => onChange?.({ productSource, product: selectedProductName, productImages, marketingGroup: selectedMarketingGroup, marketingSummary: activeMarketingGroup?.summary || '', audience: activeMarketingGroup?.targetAudience || '', painPoint: activeMarketingGroup?.painPoint || '', result: activeMarketingGroup?.result || '', originalSellingPoint: activeMarketingGroup?.originalSellingPoint || '', buyerContent: activeMarketingGroup?.buyerContent || '', materialDirection: activeMarketingGroup?.materialDirection || '', videoRequirement, platform, duration: selectedDuration, ratio, market, speechRate, ...creativeDirection, subtitle: subtitleStyles.find(item => item.id === subtitleStyle)?.name || '关闭字幕', shootingPreferences }), [productSource, selectedProductName, productImages, selectedMarketingGroup, activeMarketingGroup, videoRequirement, platform, selectedDuration, ratio, market, speechRate, creativeDirection, subtitleStyle, shootingPreferences, onChange])
+  useEffect(() => onChange?.({ productSource, product: selectedProductName, productImages, marketingGroup: selectedMarketingGroup, marketingSummary: activeMarketingGroup?.summary || '', audience: activeMarketingGroup?.targetAudience || '', painPoint: activeMarketingGroup?.painPoint || '', result: activeMarketingGroup?.result || '', originalSellingPoint: activeMarketingGroup?.originalSellingPoint || '', buyerContent: activeMarketingGroup?.buyerContent || '', materialDirection: activeMarketingGroup?.materialDirection || '', videoRequirement, platform, duration: selectedDuration, ratio, market, speechRate, ...creativeDirection }), [productSource, selectedProductName, productImages, selectedMarketingGroup, activeMarketingGroup, videoRequirement, platform, selectedDuration, ratio, market, speechRate, creativeDirection, onChange])
   return <div className="video-form-grid">
     <div className="brief-section-heading span-2"><span>01</span><div><h3>基础商品与人群配置</h3><p>确定商品、目标人群和可用于生成的参考素材</p></div></div>
     <CustomSelect icon={Package} label="商品来源" value={productSource} options={briefOptions.product} onChange={changeProductSource} className={productSource === '自由创作' ? 'span-2' : ''}/>
@@ -306,31 +371,12 @@ function BriefPanel({ onChange }) {
     <BriefSelect icon={Clock3} label="成片目标时长" value={selectedDuration} options={briefOptions.duration} onChange={setSelectedDuration}/>
     <BriefSelect label="目标市场与语言" value={market} onChange={setMarket} options={briefOptions.market}/>
     <div className="video-field-with-help"><BriefSelect icon={Mic2} label="口播语速（WPM）" value={speechRate} onChange={setSpeechRate} options={briefOptions.speechRate} optionDescriptions={speechRateDescriptions}/><small>WPM 表示每分钟口播的英文单词数；标准 150 WPM 适合大多数短视频。</small></div>
-    <SubtitleStylePicker value={subtitleStyle} onChange={setSubtitleStyle} font={subtitleFont} onFontChange={setSubtitleFont}/>
     <div className="brief-section-heading span-2"><span>03</span><div><h3>业务输出参数</h3><p>营销目标、视频形式与视觉风格</p></div></div>
     <div className="asset-ai-actions asset-ai-generation-bridge span-2"><button type="button" className="asset-ai-generate" onClick={generateBusinessParameters} disabled={Boolean(aiGenerating)} aria-busy={aiGenerating === 'business'} title="根据基础商品与人群配置和视频基础需求生成业务输出参数">{aiGenerating === 'business' ? <LoaderCircle className="product-loading-icon" aria-hidden="true"/> : <Sparkles aria-hidden="true"/>}{aiGenerating === 'business' ? '生成中…' : 'AI 生成'}</button><span role="status">{aiGenerating === 'business' ? '正在生成业务输出参数…' : aiGenerated === 'business' ? '已生成业务输出参数，可继续手动调整' : '根据基础商品与人群配置和视频基础需求生成'}</span></div>
     <BriefSelect label="营销目标" value={creativeDirection.goal} onChange={goal => setCreativeDirection(value => ({ ...value, goal }))} options={briefOptions.goal}/>
     <BriefSelect label="视频形式" value={creativeDirection.format} onChange={format => setCreativeDirection(value => ({ ...value, format }))} options={briefOptions.format}/>
     <BriefSelect label="视觉风格" value={creativeDirection.style} onChange={style => setCreativeDirection(value => ({ ...value, style }))} options={['原生自然', '明亮清新', '温暖治愈', '冷静科技', '高级纪实', '极简商业', '高饱和活力', '美式复古 90s', '现代 3D 动画']}/>
-    <div className="brief-section-heading span-2"><span>04</span><div><h3>拍摄偏好</h3><p>整片级偏好池，生成分镜时按镜头择优分配</p></div></div>
-    <div className="asset-ai-actions asset-ai-generation-bridge span-2"><button type="button" className="asset-ai-generate" onClick={generateShootingPreferences} disabled={Boolean(aiGenerating)} aria-busy={aiGenerating === 'preferences'} title="根据前三组配置和成片目标时长生成拍摄偏好">{aiGenerating === 'preferences' ? <LoaderCircle className="product-loading-icon" aria-hidden="true"/> : <Sparkles aria-hidden="true"/>}{aiGenerating === 'preferences' ? '生成中…' : 'AI 生成'}</button><span role="status">{aiGenerating === 'preferences' ? '正在生成拍摄偏好…' : aiGenerated === 'preferences' ? `已根据 ${selectedDuration} 生成 ${shootingPreferences.length} 项拍摄偏好` : '根据基础配置、视频需求、业务参数和目标时长生成'}</span></div>
-    <fieldset className="shooting-preferences span-2"><legend>偏好选择 <span>支持手动调整</span></legend><div className="preference-count"><span>为整条视频选择偏好，生成分镜时将按镜头择优分配</span><b className={shootingPreferences.length > recommendedPreferenceLimit ? 'limit' : ''}>已选 {shootingPreferences.length} 项</b></div><div className="preference-groups">{shootingPreferenceGroups.map(([group, items]) => <section key={group}><strong>{group}</strong><div>{items.map(item => {
-      const selected = shootingPreferences.includes(item)
-      return <button type="button" className={selected ? 'selected' : ''} aria-pressed={selected} onClick={() => {
-        if (selected) {
-          const next = shootingPreferences.filter(entry => entry !== item)
-          setShootingPreferences(next)
-          setPreferenceHint('')
-          return
-        }
-        const group = preferenceGroupOf(item)
-        const groupCount = shootingPreferences.filter(entry => preferenceGroupOf(entry) === group).length
-        if (groupCount >= 2) { setPreferenceHint(`“${group}”最多选择 2 项，请先取消一项。`); return }
-        const next = [...shootingPreferences, item]
-        setShootingPreferences(next)
-        setPreferenceHint('')
-      }} key={item}>{selected && <Check/>}{item}</button>
-    })}</div></section>)}</div><div className="preference-rule"><Layers3/><span>可跨类别组合，同类最多选择 2 项；系统会在生成分镜时处理镜头级冲突，每个镜头只采用一种主要运镜。</span></div>{shootingPreferences.length > recommendedPreferenceLimit && <div className="preference-volume-note strong"><CircleAlert/><span>{selectedDuration}建议选择不超过 {recommendedPreferenceLimit} 项；当前已选择 {shootingPreferences.length} 项，系统仍会按镜头择优采用，未采用的偏好不会强行加入。</span></div>}{preferenceHint && <div className="preference-warning"><CircleAlert/>{preferenceHint}</div>}</fieldset>{previewProductImage && <div className="product-image-modal" role="dialog" aria-modal="true" aria-label="图片附件预览" onClick={() => setPreviewProductImage(null)}><div className="product-image-modal-content" onClick={event => event.stopPropagation()}><header><div><strong>图片附件预览</strong><span>{previewProductImage.index + 1} / {productImages.length}</span></div><button type="button" onClick={() => setPreviewProductImage(null)} aria-label="关闭图片预览"><X/></button></header><div><img src={previewProductImage.image} alt={`图片附件 ${previewProductImage.index + 1} 大图预览`} referrerPolicy="no-referrer"/></div></div></div>}
+{previewProductImage && <div className="product-image-modal" role="dialog" aria-modal="true" aria-label="图片附件预览" onClick={() => setPreviewProductImage(null)}><div className="product-image-modal-content" onClick={event => event.stopPropagation()}><header><div><strong>图片附件预览</strong><span>{previewProductImage.index + 1} / {productImages.length}</span></div><button type="button" onClick={() => setPreviewProductImage(null)} aria-label="关闭图片预览"><X/></button></header><div><img src={previewProductImage.image} alt={`图片附件 ${previewProductImage.index + 1} 大图预览`} referrerPolicy="no-referrer"/></div></div></div>}
   </div>
 }
 
@@ -409,12 +455,133 @@ function ScriptPanel({ onNotice, onChange, onEditBrief, brief }) {
   </div>
 }
 
-function AssetsPanel({ bound, onBind }) {
-  return <div className="asset-config-list"><div className="asset-callout"><Library/><div><strong>分镜前锁定核心资产</strong><span>{bound ? '5 项核心资产已经就绪，可以继续生成分镜。' : '系统从剧本中识别出 5 项核心资产，仍有 1 项需要处理。'}</span></div><b>{bound ? '5 / 5' : '4 / 5'}</b></div>
-    {assets.map(({ id, type, name, meta, icon: Icon, state }) => <article key={id}>
-      <span className="asset-kind"><Icon/></span><div><small>{type}</small><strong>{name}</strong><p>{meta}</p></div>
-      {state === 'bound' || bound ? <span className="asset-bound"><Check/>已绑定</span> : <div className="asset-actions"><button><Upload/>上传</button><button className="solid" onClick={onBind}><Sparkles/>生成资产</button></div>}
-    </article>)}
+function CoreAssetEditor({ asset, onSave, onClose }) {
+  const [draft,setDraft]=useState(()=>({...asset}))
+  const [generating,setGenerating]=useState(false)
+  const [error,setError]=useState('')
+  const fileInput=useRef(null)
+  const update=(key,value)=>setDraft(current=>({...current,[key]:value}))
+  const uploadThumbnail=event=>{const file=event.target.files?.[0];event.target.value='';if(!file)return;if(!file.type.startsWith('image/')){setError('请选择图片文件');return}if(file.size>50*1024*1024){setError('缩略图不能超过 50 MB');return}setError('');update('thumbnail',URL.createObjectURL(file))}
+  const generate=()=>{if(!draft.skill){setError('请先绑定一个生成技能');return}if(!draft.description.trim()){setError('请先填写资产描述或生成提示词');return}setError('');setGenerating(true);window.setTimeout(()=>{const skillIndex=Math.max(0,coreAssetSkills.indexOf(draft.skill));setDraft(current=>({...current,thumbnail:mockPreviewImages[(asset.id+skillIndex)%mockPreviewImages.length],state:'bound'}));setGenerating(false)},900)}
+  const save=event=>{event.preventDefault();if(!draft.title.trim()){setError('请输入资产标题');return}onSave({...draft,title:draft.title.trim(),description:draft.description.trim(),state:draft.thumbnail||draft.type==='声音'?'bound':'missing'})}
+  return <article className="core-asset-inline-editor">
+    <form onSubmit={save}>
+      <div className="inline-asset-media">{draft.thumbnail?<img src={draft.thumbnail} alt="资产缩略图预览"/>:<div><Image/><span>暂无缩略图</span></div>}<input ref={fileInput} hidden type="file" accept="image/*" onChange={uploadThumbnail}/><button type="button" onClick={()=>fileInput.current?.click()}><Upload/>更换缩略图</button></div>
+      <div className="inline-asset-fields"><label><span>标题</span><input autoFocus value={draft.title} onChange={event=>update('title',event.target.value)} placeholder="输入资产标题"/></label><label><span>类型</span><AssetTypeSelect value={draft.type} onChange={value=>update('type',value)}/></label><label><span>描述 / 生成提示词</span><textarea value={draft.description} onChange={event=>update('description',event.target.value)} placeholder="描述主体、外观、材质、场景、光线与风格"/></label><label><span>绑定技能</span><select value={draft.skill} onChange={event=>update('skill',event.target.value)}><option value="">暂未绑定技能</option>{coreAssetSkills.map(skill=><option key={skill}>{skill}</option>)}</select></label>{error&&<p className="inline-asset-error" role="alert">{error}</p>}</div>
+      <footer><button type="button" onClick={onClose} disabled={generating}><X/>取消</button><button type="button" onClick={generate} disabled={generating}>{generating?<LoaderCircle className="product-loading-icon"/>:<Sparkles/>}{generating?'生成中…':'技能生成'}</button><button className="save" disabled={generating}><Check/>保存</button></footer>
+    </form>
+  </article>
+}
+
+function InlineAssetText({ value, onCommit, label, multiline=false }) {
+  const [editing,setEditing]=useState(false)
+  const [draft,setDraft]=useState(value)
+  const textareaRef=useRef(null)
+  useLayoutEffect(()=>{
+    const element=textareaRef.current
+    if(!editing||!element)return
+    const resize=()=>{element.style.height='auto';element.style.height=`${element.scrollHeight+element.offsetHeight-element.clientHeight}px`}
+    resize()
+    let width=element.getBoundingClientRect().width
+    const observer=new ResizeObserver(()=>{const nextWidth=element.getBoundingClientRect().width;if(nextWidth!==width){width=nextWidth;resize()}})
+    observer.observe(element)
+    return()=>observer.disconnect()
+  },[editing,draft])
+  useEffect(()=>setDraft(value),[value])
+  const commit=()=>{const next=draft.trim();onCommit(next||value);setDraft(next||value);setEditing(false)}
+  const cancel=()=>{setDraft(value);setEditing(false)}
+  const onKeyDown=event=>{if(event.key==='Escape'){event.preventDefault();cancel()}else if(!multiline&&event.key==='Enter'){event.preventDefault();event.currentTarget.blur()}else if(multiline&&event.key==='Enter'&&(event.metaKey||event.ctrlKey)){event.preventDefault();event.currentTarget.blur()}}
+  if(editing)return multiline?<textarea ref={textareaRef} rows={1} className="asset-inline-description" value={draft} onChange={event=>setDraft(event.target.value)} onBlur={commit} onKeyDown={onKeyDown} autoFocus aria-label={label}/>:<input className="asset-inline-title" value={draft} onChange={event=>setDraft(event.target.value)} onBlur={commit} onKeyDown={onKeyDown} autoFocus aria-label={label}/>
+  return <button type="button" className={`asset-inline-copy ${multiline?'is-description':'is-title'}`} onClick={()=>setEditing(true)} aria-label={`修改${label}`}><span>{value}</span><Pencil aria-hidden="true"/></button>
+}
+
+function CoreAssetPreview({ asset }) {
+  const [open,setOpen]=useState(false)
+  const dialogRef=useRef(null)
+  const closeRef=useRef(null)
+  const kind=asset.mediaType||'image', source=asset.mediaSrc||asset.thumbnail
+  useEffect(()=>{if(open){dialogRef.current?.showModal();closeRef.current?.focus()}},[open])
+  const close=()=>{dialogRef.current?.close();setOpen(false)}
+  return <div className="core-media-preview">
+    <button type="button" className="reference-asset-thumbnail" aria-label={`预览${asset.title}`} aria-haspopup="dialog" onClick={()=>setOpen(true)} disabled={!source}>{kind==='audio'?<Mic2/>:kind==='video'?<video src={source} preload="metadata" muted/>:source?<img src={source} alt=""/>:<Image/>}</button>
+    {open&&<dialog ref={dialogRef} className="core-media-dialog" aria-label={asset.title} onCancel={close} onClose={()=>setOpen(false)} onClick={event=>{if(event.target===event.currentTarget){const rect=event.currentTarget.getBoundingClientRect();if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom)close()}}}><header><strong>{asset.title}</strong><button ref={closeRef} type="button" onClick={close} aria-label="关闭预览"><X/></button></header><div className="core-media-dialog-body">{kind==='audio'?<audio src={source} controls preload="metadata"/>:kind==='video'?<video src={source} controls playsInline preload="metadata"/>:<img src={source} alt={asset.title}/>}</div></dialog>}
+  </div>
+}
+
+function CoreAssetRow({ asset, onUpdate, onDelete, onNotice }) {
+  const fileInput=useRef(null)
+  const [generating,setGenerating]=useState(false)
+  const Icon=assetTypeOptions.find(([name])=>name===asset.type)?.[1]||Image
+  const upload=event=>{const file=event.target.files?.[0];event.target.value='';if(!file)return;if(!file.type.startsWith('image/')&&!file.type.startsWith('video/')){onNotice?.('请选择图片或视频文件');return}if(file.size>50*1024*1024){onNotice?.('上传文件不能超过 50 MB');return}onUpdate({...asset,thumbnail:URL.createObjectURL(file),mediaType:file.type.startsWith('video/')?'video':'image',state:'bound'});onNotice?.('资产已上传')}
+  const generate=()=>{if(!asset.skill){onNotice?.('请先绑定一个生成技能');return}if(!asset.description.trim()){onNotice?.('请先填写资产描述或生成提示词');return}setGenerating(true);window.setTimeout(()=>{const skillIndex=Math.max(0,coreAssetSkills.indexOf(asset.skill));onUpdate({...asset,thumbnail:mockPreviewImages[(asset.id+skillIndex)%mockPreviewImages.length],mediaType:'image',state:'bound'});setGenerating(false);onNotice?.('资产已生成')},900)}
+  return <article className="core-asset-row reference-list-card"><CoreAssetPreview asset={asset}/><div className="core-asset-copy"><div className="inline-asset-type"><AssetTypeSelect value={asset.type} onChange={type=>onUpdate({...asset,type})}/></div><strong><FileText aria-hidden="true"/><InlineAssetText value={asset.title} label="资产标题" onCommit={title=>onUpdate({...asset,title})}/></strong><p><Link2 aria-hidden="true"/><InlineAssetText multiline value={asset.description} label="资产描述" onCommit={description=>onUpdate({...asset,description})}/></p></div><div className="reference-row-status"><CoreSkillSelect value={asset.skill} onChange={skill=>onUpdate({...asset,skill})}/><input ref={fileInput} hidden type="file" accept="image/*,video/*" onChange={upload}/><button type="button" className="asset-row-tool" onClick={()=>fileInput.current?.click()}><Upload/>上传</button><button type="button" className="asset-row-tool is-generate" onClick={generate} disabled={generating}>{generating?<LoaderCircle className="product-loading-icon"/>:<Sparkles/>}{generating?'生成中':'生成'}</button></div><div className="reference-row-actions"><button type="button" onClick={()=>onDelete(asset)} aria-label={`删除${asset.title}`}><Trash2/></button></div></article>
+}
+
+
+function AssetProductionSettings({ brief, settings, setSettings }) {
+  const {subtitleStyle,subtitleFont,shootingPreferences}=settings
+  const setSubtitleStyle=value=>setSettings(current=>({...current,subtitleStyle:value}))
+  const setSubtitleFont=value=>setSettings(current=>({...current,subtitleFont:value}))
+  const setShootingPreferences=value=>setSettings(current=>({...current,shootingPreferences:value}))
+  const [preferenceHint,setPreferenceHint]=useState('')
+  const [aiGenerating,setAiGenerating]=useState('')
+  const [aiGenerated,setAiGenerated]=useState('')
+  const aiGenerationTimer=useRef(null)
+  useEffect(()=>()=>clearTimeout(aiGenerationTimer.current),[])
+  const selectedDuration=brief.duration
+  const videoRequirement=brief.videoRequirement
+  const creativeDirection=brief
+  const recommendedPreferenceLimit=preferenceLimitForDuration(selectedDuration)
+  const generateShootingPreferences = () => {
+    if (aiGenerating) return
+    setAiGenerating('preferences')
+    setAiGenerated('')
+    aiGenerationTimer.current = window.setTimeout(() => {
+      const context = `${videoRequirement} ${brief.buyerContent || ''} ${brief.materialDirection || ''}`
+      setShootingPreferences(recommendShootingPreferences(creativeDirection.format, context, selectedDuration))
+      setPreferenceHint('')
+      setAiGenerating('')
+      setAiGenerated('preferences')
+    }, 800)
+  }
+
+  return <section className="video-form-grid asset-production-settings">
+    <div className="brief-section-heading span-2"><div><h3>生成设置</h3><p>配置生成模型与字幕样式</p></div></div>
+    <SubtitleStylePicker value={subtitleStyle} onChange={setSubtitleStyle} font={subtitleFont} onFontChange={setSubtitleFont}/>
+    <CustomSelect icon={Video} label="生成模型" value={settings.generationModel||'Seedance 2.0-标准版'} options={['Seedance 2.0-标准版','Seedance 2.0-Mini','Seedance 2.0-Fast','Seedance 2.5']} onChange={generationModel=>setSettings(current=>({...current,generationModel}))}/>
+    <div className="brief-section-heading span-2"><div><h3>拍摄偏好</h3><p>整片级偏好池，生成分镜时按镜头择优分配</p></div></div>
+    <div className="asset-ai-actions asset-ai-generation-bridge span-2"><button type="button" className="asset-ai-generate" onClick={generateShootingPreferences} disabled={Boolean(aiGenerating)} aria-busy={aiGenerating === 'preferences'} title="根据前三组配置和成片目标时长生成拍摄偏好">{aiGenerating === 'preferences' ? <LoaderCircle className="product-loading-icon" aria-hidden="true"/> : <Sparkles aria-hidden="true"/>}{aiGenerating === 'preferences' ? '生成中…' : 'AI 生成'}</button><span role="status">{aiGenerating === 'preferences' ? '正在生成拍摄偏好…' : aiGenerated === 'preferences' ? `已根据 ${selectedDuration} 生成 ${shootingPreferences.length} 项拍摄偏好` : '根据基础配置、视频需求、业务参数和目标时长生成'}</span></div>
+    <fieldset className="shooting-preferences span-2"><legend>偏好选择 <span>支持手动调整</span></legend><div className="preference-count"><span>为整条视频选择偏好，生成分镜时将按镜头择优分配</span><b className={shootingPreferences.length > recommendedPreferenceLimit ? 'limit' : ''}>已选 {shootingPreferences.length} 项</b></div><div className="preference-groups">{shootingPreferenceGroups.map(([group, items]) => <section key={group}><strong>{group}</strong><div>{items.map(item => {
+      const selected = shootingPreferences.includes(item)
+      return <button type="button" className={selected ? 'selected' : ''} aria-pressed={selected} onClick={() => {
+        if (selected) {
+          const next = shootingPreferences.filter(entry => entry !== item)
+          setShootingPreferences(next)
+          setPreferenceHint('')
+          return
+        }
+        const group = preferenceGroupOf(item)
+        const groupCount = shootingPreferences.filter(entry => preferenceGroupOf(entry) === group).length
+        if (groupCount >= 2) { setPreferenceHint(`“${group}”最多选择 2 项，请先取消一项。`); return }
+        const next = [...shootingPreferences, item]
+        setShootingPreferences(next)
+        setPreferenceHint('')
+      }} key={item}>{selected && <Check/>}{item}</button>
+    })}</div></section>)}</div><div className="preference-rule"><Layers3/><span>可跨类别组合，同类最多选择 2 项；系统会在生成分镜时处理镜头级冲突，每个镜头只采用一种主要运镜。</span></div>{shootingPreferences.length > recommendedPreferenceLimit && <div className="preference-volume-note strong"><CircleAlert/><span>{selectedDuration}建议选择不超过 {recommendedPreferenceLimit} 项；当前已选择 {shootingPreferences.length} 项，系统仍会按镜头择优采用，未采用的偏好不会强行加入。</span></div>}{preferenceHint && <div className="preference-warning"><CircleAlert/>{preferenceHint}</div>}</fieldset>
+  </section>
+}
+
+function AssetsPanel({ onNotice }) {
+  const [items,setItems]=useState(initialCoreAssets)
+  const [editing,setEditing]=useState(null)
+  const [deleting,setDeleting]=useState(null)
+  const ready=items.filter(item=>item.state==='bound').length
+  const save=item=>{setItems(current=>current.some(entry=>entry.id===item.id)?current.map(entry=>entry.id===item.id?item:entry):[...current,item]);setEditing(null);onNotice?.('核心资产已保存')}
+  const add=()=>setEditing({id:Date.now(),type:'场景',title:'',description:'',thumbnail:'',skill:'场景参考生成',icon:Image,state:'missing'})
+  return <div className="asset-config-list"><div className="asset-callout"><Library/><div><strong>分镜前锁定核心资产</strong><span>{ready===items.length?'核心资产已经就绪，可以继续生成分镜。':`系统从剧本中识别出 ${items.length} 项核心资产，仍有 ${items.length-ready} 项需要处理。`}</span></div><b>{ready} / {items.length}</b></div><div className="core-asset-toolbar"><div><strong>核心资产</strong><span>可添加、修改或删除，图片资产支持绑定技能生成。</span></div><button type="button" onClick={add}><Plus/>添加资产</button></div>
+    {items.map(asset=>editing?.id===asset.id?<CoreAssetEditor key={asset.id} asset={editing} onSave={save} onClose={()=>setEditing(null)}/>:<CoreAssetRow key={asset.id} asset={asset} onUpdate={updated=>setItems(current=>current.map(item=>item.id===updated.id?updated:item))} onDelete={setDeleting} onNotice={onNotice}/>)}
+    {!items.length&&<div className="core-asset-empty"><Library/><strong>还没有核心资产</strong><span>添加产品、人物或场景资产，为分镜保持视觉一致性。</span><button type="button" onClick={add}><Plus/>添加资产</button></div>}
+    {editing&&!items.some(item=>item.id===editing.id)&&<CoreAssetEditor asset={editing} onSave={save} onClose={()=>setEditing(null)}/>} {deleting&&<div className="core-delete-backdrop"><section role="alertdialog" aria-modal="true" aria-labelledby="core-delete-title"><Trash2/><h3 id="core-delete-title">删除“{deleting.title}”？</h3><p>该资产会从当前视频项目的核心资产中移除。</p><div><button type="button" onClick={()=>setDeleting(null)}>取消</button><button type="button" className="danger" onClick={()=>{setItems(current=>current.filter(item=>item.id!==deleting.id));setDeleting(null);onNotice?.('核心资产已删除')}}>确认删除</button></div></section></div>}
   </div>
 }
 
@@ -439,20 +606,43 @@ function ExportPanel() {
   return <div className="export-panel"><div className="export-preview"><video src="/demo-videos/demo-video-01.mp4" controls playsInline/><span>9:16 · 45 秒</span></div><div className="export-options"><h3>合成设置</h3>{[['自动字幕','跟随配音生成中文字幕'],['背景音乐','轻快原声 · 20% 音量'],['片段转场','自然切换 · 0.2 秒'],['品牌片尾','产品 Logo + 行动引导']].map(([name, desc]) => <label key={name}><input type="checkbox" defaultChecked/><span><b>{name}</b><small>{desc}</small></span></label>)}<button className="export-button"><Film/>开始合成完整视频</button></div></div>
 }
 
-export default function VideoWorkspace() {
+export default function VideoWorkspace({ homeRequest = 0 }) {
+  const [tasks,setTasks]=useState(initialCreationTasks)
+  const [selectedTask,setSelectedTask]=useState(null)
+  useEffect(()=>{setSelectedTask(null)},[homeRequest])
+  const [taskModes,setTaskModes]=useState({})
   const [active, setActive] = useState(2)
   const [model, setModel] = useState('2.0')
-  const [bound, setBound] = useState(false)
   const [generated, setGenerated] = useState([0, 1])
+  const [productionSettings,setProductionSettings]=useState({subtitleStyle:'outlined-white',subtitleFont:'自动匹配',shootingPreferences:['核心功能演示','便携收纳展示','边用边讲','自然抓拍','产品微距','半身近景','桌面顶拍','固定机位','主体锁焦','前后对比剪辑']})
   const [notice, setNotice] = useState('')
   const [scriptConfirmed, setScriptConfirmed] = useState(false)
   const [briefParameters, setBriefParameters] = useState({ productSource: '个人商品', product: 'AeroPress Go 便携咖啡器', marketingGroup: '美国城市混合办公人群', marketingSummary: '需要在家、办公室与通勤场景间切换的咖啡饮用者', audience: '营销假设：25–34 岁、居住在美国城市、每周往返办公室且重视咖啡品质与便携性的上班族', painPoint: '办公室咖啡体验不稳定，传统冲煮设备不便携带、收纳和清洁', result: '用一套可收纳进随行杯的器具，在约 2 分钟内完成冲煮与清洁', originalSellingPoint: '8 oz 单杯容量、整套收纳进随行杯、约 2 分钟完成冲煮与清洁', buyerContent: '从工作包中取出整套器具，在办公桌完成冲煮，清洁后重新收进随行杯', materialDirection: '办公室咖啡与新鲜冲煮前后对比、桌面顶拍操作、微滤细节、清洁与收纳连续动作', videoRequirement: '制作一条 45 秒 TikTok 竖屏英文短视频，面向需要在通勤、家庭与办公室之间切换的美国城市上班族。前三秒用普通办公室咖啡与新鲜冲煮形成反差；随后展示整套器具从随行杯中取出、加入咖啡粉与热水、搅拌按压、清洁并重新收纳。只使用可验证卖点：8 oz 单杯容量、整套可收纳进随行杯、微滤减少咖啡渣、冲煮与清洁约 2 分钟。', platform: 'TikTok', duration: '45 秒', ratio: '9:16 竖屏', market: '美国 · English (US)', goal: '解释核心卖点', format: '产品功能演示', style: '原生自然', subtitle: '黑描边白字字幕', shootingPreferences: ['核心功能演示', '便携收纳展示', '边用边讲', '自然抓拍', '产品微距', '半身近景', '桌面顶拍', '固定机位', '主体锁焦', '前后对比剪辑'] })
-  const panels = useMemo(() => [<BriefPanel onChange={setBriefParameters}/>, <ScriptPanel brief={briefParameters} onNotice={setNotice} onChange={() => setScriptConfirmed(false)} onEditBrief={() => setActive(0)}/>, <AssetsPanel bound={bound} onBind={() => { setBound(true); setNotice('场景资产已生成并绑定') }}/>, <StoryboardPanel model={model} setModel={setModel}/>, <GeneratePanel generated={generated} onGenerate={id => { setGenerated(value => [...value, id]); setNotice(`片段 ${id + 1} 已生成`) }}/>, <ExportPanel/>], [model, generated, bound, briefParameters])
+  const isBlankTask=selectedTask?.startsWith('task-new-')
+  const currentTaskMode=selectedTask?taskModes[selectedTask]||'':''
+  const panels = useMemo(() => [<BriefPanel blank={isBlankTask} initialMode={currentTaskMode} onChange={setBriefParameters}/>, <ScriptPanel brief={briefParameters} onNotice={setNotice} onChange={() => setScriptConfirmed(false)} onEditBrief={() => setActive(0)}/>, <AssetsPanel onNotice={setNotice}/>, <div className="short-preferences-page"><AssetProductionSettings brief={briefParameters} settings={productionSettings} setSettings={setProductionSettings}/></div>, <StoryPanel settings={productionSettings} onNotice={setNotice}/>, <GeneratePanel generated={generated} onGenerate={id => { setGenerated(value => [...value, id]); setNotice(`片段 ${id + 1} 已生成`) }}/>], [model, generated, briefParameters, productionSettings, isBlankTask, currentTaskMode])
+  useEffect(()=>{if(!notice)return;const timer=window.setTimeout(()=>setNotice(''),2400);return()=>window.clearTimeout(timer)},[notice])
   const [, , label] = steps[active]
-  return <main className="video-workspace"><Workflow active={active} onChange={setActive}/><section className="video-work-area">
-    <header className="video-work-header"><div><span>快捷生成视频 / 新建项目</span><h1>{label}</h1></div><div><button className="quiet-button">保存草稿</button><button className="primary-button" onClick={() => { if (active === 1) { setScriptConfirmed(true); setNotice('剧本已确认，可用于准备核心资产') }; setActive(value => Math.min(steps.length - 1, value + 1)) }}>{active === steps.length - 1 ? '导出设置' : active === 1 && !scriptConfirmed ? '确认剧本并继续' : '继续'}<ArrowRight/></button></div></header>
-    <div className="video-stage"><div className="stage-intro"><div><span>步骤 {active + 1} / {steps.length}</span><h2>{label}</h2><p>{['描述本次视频的目标、产品与投放环境。','确认故事、口播和营销方向后再准备资产。','锁定影响人物、产品和场景一致性的核心资源。','根据模型时长上限，把完整剧本转换为可执行片段。','逐段生成、检查并只重试不满意的部分。','统一声音、字幕和转场，输出完整成片。'][active]}</p></div>{active > 0 && <button className="back-button" onClick={() => setActive(active - 1)}><ArrowLeft/>上一步</button>}</div>
-      <div className="stage-content">{panels[active]}</div>
-    </div>
-  </section>{notice && <div className="video-toast"><Check/>{notice}</div>}{bound && <div className="demo-binding-indicator"><Check/>资产已补齐</div>}</main>
+  const openTaskCreator=()=>{setSelectedTask(null);setActive(0);setNotice('')}
+  const createTask=mode=>{
+    const id=`task-new-${Date.now()}`
+    const number=tasks.length-initialCreationTasks.length+1
+    const task=[id,`新建视频任务 ${number}`,'创作需求 · 刚刚',mockPreviewImages[0]]
+    setTasks(current=>[task,...current])
+    setTaskModes(current=>({...current,[id]:mode}))
+    setSelectedTask(id)
+    setActive(0)
+    setGenerated([])
+    setScriptConfirmed(false)
+    setProductionSettings({subtitleStyle:'outlined-white',subtitleFont:'自动匹配',shootingPreferences:[]})
+    setNotice('新任务已创建，请填写创作需求')
+  }
+  return <main className="video-workspace horizontal-workflow"><CreationTaskHistory tasks={tasks} selected={selectedTask} onSelect={setSelectedTask} onNew={openTaskCreator}/><section className="video-work-area">
+    {selectedTask===null?<><header className="video-work-header creation-start-header"><div><span>SHULAN / CREATIVE STUDIO</span><h1>创意中心</h1></div></header><div className="creation-start-stage"><CreativeHome onChoose={createTask}/></div></>:
+    <>
+    <header className="video-work-header"><div><span>快捷生成视频 / 新建项目</span><h1>{label}</h1></div><Workflow active={active} onChange={setActive}/><div><button className="quiet-button">保存草稿</button><button className="primary-button" onClick={() => { if (active === steps.length - 1) { setNotice('视频生成流程已完成'); return }; if (active === 1) { setScriptConfirmed(true); setNotice('剧本已确认，可用于准备核心资产') }; setActive(value => Math.min(steps.length - 1, value + 1)) }}>{active === steps.length - 1 ? '完成' : active === 1 && !scriptConfirmed ? '确认剧本并继续' : '继续'}{active === steps.length - 1 ? <Check/> : <ArrowRight/>}</button></div></header>
+    <div className="video-stage">
+      <div className="stage-content" key={selectedTask}>{panels[active]}</div>
+    </div></>}
+  </section>{notice && <div className="asset-toast video-toast"><Check/>{notice}</div>}</main>
 }
