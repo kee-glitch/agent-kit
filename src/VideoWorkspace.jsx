@@ -1,8 +1,11 @@
+import { cortisolDemo, cortisolProduct, cortisolMarketingGroup, cortisolWorkflow, cortisolScript, cortisolShots, cortisolImageDetails } from './cortisol-demo'
+import { buildScriptAssets } from './script-assets'
+import AttachmentQuality from './AttachmentQuality'
 import React, { useEffect, useLayoutEffect, useId, useMemo, useRef, useState } from 'react'
 import {
   ArrowLeft, ArrowRight, Box, Captions, Check, ChevronDown, CircleAlert, Clock3,
   Copy, FileText, Film, Image, Languages, Layers3, Library, Link2, LoaderCircle, Lock, Mic2,
-  MonitorPlay, MoreHorizontal, Package, Palette, Pencil, PersonStanding, Play, Plus, Ratio, RefreshCw, Search, Settings2, ShieldAlert, Shirt, Sparkles, Target, Trash2, Unlock, Upload, UserRound,
+  MonitorPlay, MoreHorizontal, Package, Palette, Pencil, Play, Plus, Ratio, RefreshCw, Search, Settings2, ShieldAlert, Shirt, Sparkles, Target, Trash2, Unlock, Upload, UserRound,
   Video, WandSparkles, X
 } from 'lucide-react'
 import './form-components.css'
@@ -29,7 +32,7 @@ function createDemoAudio() {
 }
 
 const initialCoreAssets = [
-  { id: 1, type: '主体', title: '拟人化三维卡通骷髅开箱博主', description: '成年人体型，象牙白骨骼，眼窝深邃但具有清晰情绪变化，颌骨活动自然，手部骨节完整，动作带有疲惫、迟疑和真实用户生成内容的生活感。声线为成年意大利用户：前段音量偏低、气息略沉、语速稍快并带疲惫感；中段放缓且稳定清楚；结尾加快但吐字完整，保留自然呼吸和轻微停顿。', thumbnail: mockPreviewImages[6], skill: '人物一致性', icon: UserRound, state: 'bound' },
+  { id: 1, type: '人物', title: '拟人化三维卡通骷髅开箱博主', description: '成年人体型，象牙白骨骼，眼窝深邃但具有清晰情绪变化，颌骨活动自然，手部骨节完整，动作带有疲惫、迟疑和真实用户生成内容的生活感。声线为成年意大利用户：前段音量偏低、气息略沉、语速稍快并带疲惫感；中段放缓且稳定清楚；结尾加快但吐字完整，保留自然呼吸和轻微停顿。', thumbnail: mockPreviewImages[6], skill: '人物一致性', icon: UserRound, state: 'bound' },
   { id: 2, type: '服饰', title: '深灰色针织家居套装', description: '深灰色针织家居上衣，柔软棉质纹理，宽松剪裁，搭配深色居家长裤，整体呈现长期居家办公的简洁生活风格。', thumbnail: mockPreviewImages[2], skill: '服饰参考生成', icon: Box, state: 'bound' },
   { id: 3, type: '场景', title: '米兰现代公寓室内', description: '前景为木质办公桌与办公用品，中景为骷髅角色和办公椅，远景为简洁墙面、餐桌、花瓶与暖色花朵；空间从冷蓝灰紫办公区域逐渐过渡到米白暖粉的餐桌开箱区域。', thumbnail: mockPreviewImages[3], skill: '场景参考生成', icon: Image, state: 'bound' },
   { id: 4, type: '道具', title: 'WindBoss Cortisol-A 粉色瓶', description: '九十粒日间配方，圆柱形塑料瓶，粉色瓶身与清晰稳定的产品标签，默认位于暖色餐桌中央。', thumbnail: mockPreviewImages[4], skill: '商品主图生成', icon: Package, state: 'bound' },
@@ -38,7 +41,7 @@ const initialCoreAssets = [
 ]
 
 const coreAssetSkills=['商品主图生成','人物一致性','服饰参考生成','场景参考生成','通用视觉生成']
-const assetTypeOptions=[['产品',Package],['主体',PersonStanding],['人物',UserRound],['服饰',Shirt],['场景',Image],['声音',Mic2],['视频',Video],['道具',Box]]
+const assetTypeOptions=[['产品',Package],['人物',UserRound],['服饰',Shirt],['场景',Image],['声音',Mic2],['视频',Video],['道具',Box]]
 
 function AssetTypeSelect({ value, onChange }) {
   const [open,setOpen]=useState(false)
@@ -84,6 +87,7 @@ function Workflow({ active, onChange }) {
 }
 
 const initialCreationTasks=[
+  ['task-cortisol-demo','皮质醇软糖 · TikTok 60秒演示','创作需求 · 演示数据',cortisolProduct.images[0]],
   ['task-1','WindBoss 日夜双瓶种草视频','故事面板 · 刚刚',mockPreviewImages[4]],
   ['task-2','便携咖啡器产品演示','创作需求 · 10:45',mockPreviewImages[1]],
   ['task-3','深色针织家居服短片','核心资产 · 昨天',mockPreviewImages[2]],
@@ -134,6 +138,7 @@ const shootingPreferenceGroups = [
 ]
 
 const productCatalog = [
+  cortisolProduct,
   { name: 'AeroPress Go 便携咖啡器', category: '咖啡器具', images: mockPreviewImages.slice(0, 4) },
   { name: 'Breeze Mini 随行风扇', category: '便携电器', images: mockPreviewImages.slice(3, 7) },
   { name: 'LumaCare 智能护眼灯', category: '智能家居', images: mockPreviewImages.slice(6, 10) },
@@ -141,6 +146,7 @@ const productCatalog = [
 ]
 
 const marketingGroups = [
+  cortisolMarketingGroup,
   { name: '美国城市混合办公人群', summary: '需要在家、办公室与通勤场景间切换的咖啡饮用者', targetAudience: '营销假设：25–34 岁、居住在美国城市、每周往返办公室且重视咖啡品质与便携性的上班族', painPoint: '办公室咖啡体验不稳定，传统冲煮设备不便携带、收纳和清洁', result: '用一套可收纳进随行杯的器具，在约 2 分钟内完成冲煮与清洁', originalSellingPoint: '8 oz 单杯容量、整套收纳进随行杯、约 2 分钟完成冲煮与清洁', buyerContent: '从工作包中取出整套器具，在办公桌完成冲煮，清洁后重新收进随行杯', materialDirection: '办公室咖啡与新鲜冲煮前后对比、桌面顶拍操作、微滤细节、清洁与收纳连续动作' },
   { name: '美国户外旅行人群', summary: '露营、徒步和自驾场景中的便携咖啡需求', targetAudience: '20–40 岁、喜欢露营、自驾和轻户外活动的美国旅行人群', painPoint: '户外设备空间有限，难以随时喝到口感稳定的新鲜咖啡', result: '用轻量器具在营地、车边或旅途中快速完成一杯咖啡', originalSellingPoint: '轻量便携、无需复杂设备、耐用易收纳', buyerContent: '一套装进背包，到哪里都能快速冲泡自己的咖啡', materialDirection: '户外开包、营地冲泡、产品尺寸对比与旅行收纳展示' },
   { name: '英国办公室咖啡用户', summary: '关注效率、口感与日常成本的办公室人群', targetAudience: '25–45 岁、经常在办公室饮用咖啡的英国职场用户', painPoint: '办公室速溶咖啡口感不足，外购咖啡长期成本高且需要等待', result: '以更低的日常成本在工位快速获得干净稳定的咖啡口感', originalSellingPoint: '快速冲泡、稳定萃取、高性价比', buyerContent: '无需咖啡机，在工位也能轻松完成一杯品质咖啡', materialDirection: '办公室工位实拍、成本对比、冲泡过程和咖啡液微距' },
@@ -266,24 +272,26 @@ function CreationStartPage({ onChoose }) {
   return <section className="creation-start-page"><div className="creation-orbit" aria-hidden="true"><i className="orbit-spark"><Sparkles/></i><i className="orbit-frame"><Image/></i><i className="orbit-film"><Film/></i><i className="orbit-product"><Package/></i><i className="orbit-pencil"><Pencil/></i></div><div className="creation-start-heading"><span>SHULAN · CREATIVE STUDIO</span><h2>让想法，<br/>成为下一支好作品。</h2><p>从灵感出发，或让你的商品成为主角。<br/>选择一个起点，把故事交给创作。</p></div><div className="creation-entry-grid">{creationEntryOptions.map(([id,Icon,title,description],index)=><button type="button" onClick={()=>onChoose(id)} key={id}><span className="creation-entry-index">0{index+1}</span><i><Icon/></i><strong>{title}</strong><small>{description}</small><span className="creation-entry-action">开始创作<ArrowRight/></span></button>)}</div></section>
 }
 
-function BriefPanel({ onChange, blank = false, initialMode = '' }) {
-  const initialProductSource=initialMode==='free'?'自由创作':initialMode==='team'?'团队商品':initialMode==='personal'?'个人商品':blank?'请选择商品来源':briefOptions.product[0]
-  const [productSource, setProductSource] = useState(initialProductSource)
-  const [selectedProductName, setSelectedProductName] = useState(blank ? '请选择商品' : 'AeroPress Go 便携咖啡器')
-  const [selectedMarketingGroup, setSelectedMarketingGroup] = useState(blank ? '请选择营销组别' : '美国城市混合办公人群')
-  const [productImages, setProductImages] = useState(blank ? [] : productCatalog[0].images)
+function BriefPanel({ onChange, blank = false, initialMode = '', seed }) {
+  const initialProductSource=initialMode==='free'?'自由创作':initialMode==='team'?'团队商品':initialMode==='personal'?'个人商品':blank?'请选择创作起点':briefOptions.product[0]
+  const [productSource, setProductSource] = useState(seed?.productSource ?? (initialProductSource))
+  const [selectedProductName, setSelectedProductName] = useState(seed?.product ?? (blank ? '请选择商品' : 'AeroPress Go 便携咖啡器'))
+  const [selectedMarketingGroup, setSelectedMarketingGroup] = useState(seed?.marketingGroup ?? (blank ? '请选择营销组别' : '美国城市混合办公人群'))
+  const [productImages, setProductImages] = useState(seed?.productImages ?? (blank ? [] : productCatalog.find(product => product.name === 'AeroPress Go 便携咖啡器').images))
+  const [selectedAttachment, setSelectedAttachment] = useState(null)
+  const activeAttachment = productImages.includes(selectedAttachment) ? selectedAttachment : productImages[0]
   const [productDragging, setProductDragging] = useState(false)
   const [productImagesLoading, setProductImagesLoading] = useState(false)
   const [productImagesUploading, setProductImagesUploading] = useState(false)
   const [pendingProductImageCount, setPendingProductImageCount] = useState(0)
   const [previewProductImage, setPreviewProductImage] = useState(null)
-  const [selectedDuration, setSelectedDuration] = useState(blank ? '请选择时长' : '45 秒')
-  const [platform, setPlatform] = useState(blank ? '请选择目标平台' : 'TikTok')
-  const [ratio, setRatio] = useState(blank ? '请选择画面比例' : '9:16 竖屏')
-  const [market, setMarket] = useState(blank ? '请选择市场与语言' : '美国 · English (US)')
-  const [speechRate, setSpeechRate] = useState(blank ? '请选择口播语速' : '标准 · 150 WPM')
-  const [videoRequirement, setVideoRequirement] = useState(blank ? '' : '制作一条 45 秒 TikTok 竖屏英文短视频，面向需要在通勤、家庭与办公室之间切换的美国城市上班族。前三秒用普通办公室咖啡与新鲜冲煮形成反差；随后展示整套器具从随行杯中取出、加入咖啡粉与热水、搅拌按压、清洁并重新收纳。只使用可验证卖点：8 oz 单杯容量、整套可收纳进随行杯、微滤减少咖啡渣、冲煮与清洁约 2 分钟。')
-  const [creativeDirection, setCreativeDirection] = useState(blank ? { goal: '请选择营销目标', format: '请选择视频形式', style: '请选择视觉风格' } : { goal: '解释核心卖点', format: '产品功能演示', style: '原生自然' })
+  const [selectedDuration, setSelectedDuration] = useState(seed?.duration ?? (blank ? '请选择时长' : '45 秒'))
+  const [platform, setPlatform] = useState(seed?.platform ?? (blank ? '请选择目标平台' : 'TikTok'))
+  const [ratio, setRatio] = useState(seed?.ratio ?? (blank ? '请选择画面比例' : '9:16 竖屏'))
+  const [market, setMarket] = useState(seed?.market ?? (blank ? '请选择市场与语言' : '美国 · English (US)'))
+  const [speechRate, setSpeechRate] = useState(seed?.speechRate ?? (blank ? '请选择口播语速' : '标准 · 150 WPM'))
+  const [videoRequirement, setVideoRequirement] = useState(seed?.videoRequirement ?? (blank ? '' : '制作一条 45 秒 TikTok 竖屏英文短视频，面向需要在通勤、家庭与办公室之间切换的美国城市上班族。前三秒用普通办公室咖啡与新鲜冲煮形成反差；随后展示整套器具从随行杯中取出、加入咖啡粉与热水、搅拌按压、清洁并重新收纳。只使用可验证卖点：8 oz 单杯容量、整套可收纳进随行杯、微滤减少咖啡渣、冲煮与清洁约 2 分钟。'))
+  const [creativeDirection, setCreativeDirection] = useState(seed?.creativeDirection ?? (blank ? { goal: '请选择营销目标', format: '请选择视频形式', style: '请选择视觉风格' } : { goal: '解释核心卖点', format: '产品功能演示', style: '原生自然' }))
   const [aiGenerating, setAiGenerating] = useState('')
   const [aiGenerated, setAiGenerated] = useState('')
   const aiGenerationTimer = useRef(null)
@@ -333,6 +341,7 @@ function BriefPanel({ onChange, blank = false, initialMode = '' }) {
     setPendingProductImageCount(added.length)
     productUploadTimer.current = window.setTimeout(() => {
       setProductImages(value => [...value, ...added])
+      setSelectedAttachment(added[0])
       pendingProductUrls.current = []
       setProductImagesUploading(false)
       setPendingProductImageCount(0)
@@ -352,18 +361,19 @@ function BriefPanel({ onChange, blank = false, initialMode = '' }) {
     setProductImagesLoading(false)
     setProductImages([])
   }
-  const usesCommodityAssets = productSource !== '请选择商品来源' && productSource !== '自由创作'
+  const usesCommodityAssets = productSource !== '请选择创作起点' && productSource !== '自由创作'
   const commodityLibraryName = productSource === '团队商品' ? '团队商品库' : '个人商品库'
   const activeMarketingGroup = marketingGroups.find(group => group.name === selectedMarketingGroup)
   useEffect(() => onChange?.({ productSource, product: selectedProductName, productImages, marketingGroup: selectedMarketingGroup, marketingSummary: activeMarketingGroup?.summary || '', audience: activeMarketingGroup?.targetAudience || '', painPoint: activeMarketingGroup?.painPoint || '', result: activeMarketingGroup?.result || '', originalSellingPoint: activeMarketingGroup?.originalSellingPoint || '', buyerContent: activeMarketingGroup?.buyerContent || '', materialDirection: activeMarketingGroup?.materialDirection || '', videoRequirement, platform, duration: selectedDuration, ratio, market, speechRate, ...creativeDirection }), [productSource, selectedProductName, productImages, selectedMarketingGroup, activeMarketingGroup, videoRequirement, platform, selectedDuration, ratio, market, speechRate, creativeDirection, onChange])
   return <div className="video-form-grid">
     <div className="brief-section-heading span-2"><span>01</span><div><h3>基础商品与人群配置</h3><p>确定商品、目标人群和可用于生成的参考素材</p></div></div>
-    <CustomSelect icon={Package} label="商品来源" value={productSource} options={briefOptions.product} onChange={changeProductSource} className={productSource === '自由创作' ? 'span-2' : ''}/>
+    <CustomSelect icon={Package} label="创作起点" value={productSource} options={briefOptions.product} onChange={changeProductSource} className={productSource === '自由创作' ? 'span-2' : ''}/>
     {usesCommodityAssets && (
       <CustomSelect icon={Package} label="绑定商品" value={selectedProductName} options={productCatalog.map(product => product.name)} optionImages={Object.fromEntries(productCatalog.map(product => [product.name, product.images[0]]))} onChange={productName => { const product = productCatalog.find(item => item.name === productName) || productCatalog[0]; productImages.forEach(image => image.startsWith('blob:') && URL.revokeObjectURL(image)); setSelectedProductName(product.name); setSelectedMarketingGroup('请选择营销组别'); loadCatalogImages(product) }}/>
     )}
-    {usesCommodityAssets && selectedProductName !== '请选择商品' && <div className="marketing-group-config span-2"><CustomSelect label="分人群营销" value={selectedMarketingGroup} options={marketingGroups.map(group => group.name)} optionDescriptions={Object.fromEntries(marketingGroups.map(group => [group.name, group.summary]))} onChange={setSelectedMarketingGroup}/><small className="marketing-group-source">来自分人群营销实验库 · 用于确定这条视频重点说服的人群</small>{activeMarketingGroup && <article className="marketing-group-card"><header><div><strong>{activeMarketingGroup.name}</strong><span>{activeMarketingGroup.summary}</span></div><button type="button" onClick={() => setSelectedMarketingGroup('请选择营销组别')}>清除</button></header><dl><div><dt><UserRound/>目标人群</dt><dd>{activeMarketingGroup.targetAudience}</dd></div><div><dt><ShieldAlert/>核心痛点</dt><dd>{activeMarketingGroup.painPoint}</dd></div><div><dt><Check/>核心结果</dt><dd>{activeMarketingGroup.result}</dd></div><div><dt><Box/>对应原始卖点</dt><dd>{activeMarketingGroup.originalSellingPoint}</dd></div><div><dt><Settings2/>对应买点内容</dt><dd>{activeMarketingGroup.buyerContent}</dd></div><div><dt><Film/>素材方向</dt><dd>{activeMarketingGroup.materialDirection}</dd></div></dl></article>}</div>}
-    <div className={`product-attachments span-2 ${productDragging ? 'is-dragging' : ''} ${productImagesLoading || productImagesUploading ? 'is-loading' : ''}`} tabIndex="0" onDragEnter={event => { event.preventDefault(); if (!productImagesLoading && !productImagesUploading) setProductDragging(true) }} onDragOver={event => event.preventDefault()} onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget)) setProductDragging(false) }} onDrop={event => { event.preventDefault(); setProductDragging(false); addProductImages(event.dataTransfer.files) }} onPaste={event => addProductImages(event.clipboardData.files)} aria-busy={productImagesLoading || productImagesUploading} aria-label={usesCommodityAssets ? '商品素材附件' : '创作参考图片'}><input ref={productImageInput} hidden type="file" accept="image/*" multiple onChange={event => { addProductImages(event.target.files); event.target.value = '' }}/><div className="product-attachments-heading">{productImagesLoading || productImagesUploading ? <LoaderCircle className="product-loading-icon"/> : <Upload/>}<div><span>{usesCommodityAssets ? '商品素材附件' : '创作参考图片'}</span><small>{productImagesLoading ? `正在从${commodityLibraryName}加载图片…` : productImagesUploading ? `正在上传 ${pendingProductImageCount} 张图片…` : usesCommodityAssets ? `${productImages.length} 张图片 · 已引用${commodityLibraryName}素材，可继续添加、删除或拖拽粘贴` : productImages.length ? `${productImages.length} 张图片 · 将作为自由创作参考，可继续拖拽或粘贴` : '不引用商品库图片，支持点击、拖拽或粘贴图片'}</small></div><button type="button" disabled={productImagesLoading || productImagesUploading} onClick={() => productImageInput.current?.click()}>{productImagesLoading ? '加载中' : productImagesUploading ? '上传中' : '选择图片'}</button></div>{productImagesLoading ? <div className="product-attachment-skeletons" aria-hidden="true">{[1,2,3,4].map(item => <i key={item}/>)}</div> : (productImages.length > 0 || productImagesUploading) && <div className="product-attachment-strip" aria-label={usesCommodityAssets ? '商品素材附件列表' : '创作参考图片列表'}>{productImages.map((image, index) => <div className="product-attachment-item" key={`${image}-${index}`}><button type="button" className="product-attachment-preview" onClick={() => setPreviewProductImage({ image, index })} aria-label={`查看图片附件 ${index + 1}`}><img src={image} alt="" referrerPolicy="no-referrer"/></button><button type="button" className="product-attachment-remove" onClick={() => { if (image.startsWith('blob:')) URL.revokeObjectURL(image); setProductImages(value => value.filter((_, itemIndex) => itemIndex !== index)) }} aria-label={`删除图片附件 ${index + 1}`}><X/></button></div>)}{productImagesUploading && Array.from({ length: pendingProductImageCount }).map((_, index) => <span className="product-upload-skeleton" role="status" aria-label={`图片 ${index + 1} 上传中`} key={`uploading-${index}`}><LoaderCircle/><small>上传中</small></span>)}</div>}</div>
+    {usesCommodityAssets && selectedProductName !== '请选择商品' && <div className="marketing-group-config span-2"><CustomSelect label="分人群营销" value={selectedMarketingGroup} options={marketingGroups.map(group => group.name)} optionDescriptions={Object.fromEntries(marketingGroups.map(group => [group.name, group.summary]))} onChange={setSelectedMarketingGroup}/><small className="marketing-group-source">来自分人群营销实验库 · 用于确定这条视频重点说服的人群</small>{activeMarketingGroup && <article className="marketing-group-card"><header><div><strong>{activeMarketingGroup.name}</strong><span>{activeMarketingGroup.summary}</span></div><button type="button" onClick={() => setSelectedMarketingGroup('请选择营销组别')}>清除</button></header><dl><div><dt><UserRound/>目标受众</dt><dd>{activeMarketingGroup.targetAudience}</dd></div><div><dt><ShieldAlert/>受众核心痛点</dt><dd>{activeMarketingGroup.painPoint}</dd></div><div><dt><Check/>预期达成效果</dt><dd>{activeMarketingGroup.result}</dd></div><div><dt><Box/>产品原始卖点</dt><dd>{activeMarketingGroup.originalSellingPoint}</dd></div><div><dt><Settings2/>营销转化买点</dt><dd>{activeMarketingGroup.buyerContent}</dd></div></dl></article>}</div>}
+    <div className={`product-attachments span-2 ${productDragging ? 'is-dragging' : ''} ${productImagesLoading || productImagesUploading ? 'is-loading' : ''}`} tabIndex="0" onDragEnter={event => { event.preventDefault(); if (!productImagesLoading && !productImagesUploading) setProductDragging(true) }} onDragOver={event => event.preventDefault()} onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget)) setProductDragging(false) }} onDrop={event => { event.preventDefault(); setProductDragging(false); addProductImages(event.dataTransfer.files) }} onPaste={event => addProductImages(event.clipboardData.files)} aria-busy={productImagesLoading || productImagesUploading} aria-label={usesCommodityAssets ? '商品素材附件' : '创作参考图片'}><input ref={productImageInput} hidden type="file" accept="image/*" multiple onChange={event => { addProductImages(event.target.files); event.target.value = '' }}/><div className="product-attachments-heading">{productImagesLoading || productImagesUploading ? <LoaderCircle className="product-loading-icon"/> : <Upload/>}<div><span>{usesCommodityAssets ? '商品素材附件' : '创作参考图片'}</span><small>{productImagesLoading ? `正在从${commodityLibraryName}加载图片…` : productImagesUploading ? `正在上传 ${pendingProductImageCount} 张图片…` : usesCommodityAssets ? `${productImages.length} 张图片 · 已引用${commodityLibraryName}素材，可继续添加、删除或拖拽粘贴` : productImages.length ? `${productImages.length} 张图片 · 将作为自由创作参考，可继续拖拽或粘贴` : '不引用商品库图片，支持点击、拖拽或粘贴图片'}</small></div><button type="button" disabled={productImagesLoading || productImagesUploading} onClick={() => productImageInput.current?.click()}>{productImagesLoading ? '加载中' : productImagesUploading ? '上传中' : '选择图片'}</button></div>{productImagesLoading ? <div className="product-attachment-skeletons" aria-hidden="true">{[1,2,3,4].map(item => <i key={item}/>)}</div> : (productImages.length > 0 || productImagesUploading) && <div className="product-attachment-strip" aria-label={usesCommodityAssets ? '商品素材附件列表' : '创作参考图片列表'}>{productImages.map((image, index) => <div className="product-attachment-item" key={`${image}-${index}`}><button type="button" className="product-attachment-preview" onClick={() => setSelectedAttachment(image)} aria-pressed={activeAttachment === image} aria-label={`查看图片附件 ${index + 1} 的质量评分`}><img src={image} alt="" referrerPolicy="no-referrer"/></button><button type="button" className="product-attachment-remove" onClick={() => { if (image.startsWith('blob:')) URL.revokeObjectURL(image); setProductImages(value => value.filter((_, itemIndex) => itemIndex !== index)) }} aria-label={`删除图片附件 ${index + 1}`}><X/></button></div>)}{productImagesUploading && Array.from({ length: pendingProductImageCount }).map((_, index) => <span className="product-upload-skeleton" role="status" aria-label={`图片 ${index + 1} 上传中`} key={`uploading-${index}`}><LoaderCircle/><small>上传中</small></span>)}</div>}<AttachmentQuality images={productImages} activeImage={activeAttachment} loading={productImagesLoading || productImagesUploading} onPreview={setPreviewProductImage}/></div>
+
     <div className="brief-section-heading span-2"><span>02</span><div><h3>视频基础需求</h3><p>定义投放环境、成片规格与语言字幕</p></div></div>
     <label className="span-2"><span>视频需求描述</span><textarea value={videoRequirement} onChange={event => setVideoRequirement(event.target.value)}/></label>
     <BriefSelect label="目标平台" value={platform} onChange={setPlatform} options={briefOptions.platform}/>
@@ -390,16 +400,27 @@ const initialScriptSections = {
 const scriptElements = [
   ['人物', UserRound, ['美国城市混合办公女性']],
   ['场景', Image, ['办公室工位']],
-  ['道具', Box, ['AeroPress Go', '随行杯']]
+  ['产品', Package, ['AeroPress Go']],
+  ['道具', Box, ['随行杯']]
 ]
 
-function ScriptPanel({ onNotice, onChange, onEditBrief, brief }) {
-  const [sections, setSections] = useState(initialScriptSections)
+function ScriptElementTag({ title, description, thumbnail }) {
+  const tooltipId = useId()
+  const [dismissed, setDismissed] = useState(false)
+  return <div className={`script-element-tag${dismissed ? ' tooltip-dismissed' : ''}`} onMouseEnter={() => setDismissed(false)}>
+    <span tabIndex={0} className={thumbnail ? 'has-thumbnail' : undefined} aria-describedby={tooltipId} onFocus={() => setDismissed(false)} onKeyDown={event => { if (event.key === 'Escape') setDismissed(true) }}>{thumbnail && <img src={thumbnail} alt=""/>}{title}</span>
+    <div id={tooltipId} role="tooltip" className="script-element-tooltip"><b>{title}</b><p>{description || '暂无描述'}</p></div>
+  </div>
+}
+
+function ScriptPanel({ onNotice, onChange, onEditBrief, brief, demo }) {
+  const sourceSections = demo ? cortisolScript : initialScriptSections
+  const [sections, setSections] = useState(sourceSections)
   const [editing, setEditing] = useState('')
   const [locked, setLocked] = useState(['summary'])
   const [previewProductImage, setPreviewProductImage] = useState(null)
   const oralWordCount = sections.oral.trim().split(/\s+/).filter(Boolean).length
-  const speechRateWpm = Number.parseInt(brief.speechRate, 10) || 150
+  const speechRateWpm = Number.parseInt(brief.speechRate?.match(/\d+/)?.[0], 10) || 150
   const estimatedOralSeconds = Math.ceil(oralWordCount / (speechRateWpm / 60))
   const sectionMeta = [
     ['summary', '故事梗概', '中文策划说明'],
@@ -411,7 +432,7 @@ function ScriptPanel({ onNotice, onChange, onEditBrief, brief }) {
   const rewriteSection = id => {
     if (locked.includes(id)) return
     const suffix = id === 'summary' ? ' 全片保持自然生活化表达，并将产品操作作为主要叙事动作。' : ''
-    updateSection(id, `${initialScriptSections[id]}${suffix}`)
+    updateSection(id, `${sourceSections[id]}${suffix}`)
     onNotice?.(`${sectionMeta.find(item => item[0] === id)?.[1]}已重新生成`)
   }
   const copySection = async id => {
@@ -419,7 +440,7 @@ function ScriptPanel({ onNotice, onChange, onEditBrief, brief }) {
     onNotice?.(`${sectionMeta.find(item => item[0] === id)?.[1]}已复制`)
   }
   const rewriteUnlocked = () => {
-    setSections(current => Object.fromEntries(Object.entries(current).map(([id, value]) => [id, locked.includes(id) ? value : initialScriptSections[id]])))
+    setSections(current => Object.fromEntries(Object.entries(current).map(([id, value]) => [id, locked.includes(id) ? value : sourceSections[id]])))
     setEditing('')
     onChange?.()
     onNotice?.(`已重新生成 ${sectionMeta.length - locked.length} 项未锁定内容`)
@@ -439,8 +460,13 @@ function ScriptPanel({ onNotice, onChange, onEditBrief, brief }) {
     <section className="script-overview" aria-labelledby="script-product-title"><div className="script-overview-product"><div className="script-overview-copy"><small>{brief.productSource || '自由创作'}</small><h3 id="script-product-title">{productTitle}</h3><div className="script-overview-audience"><UserRound/><span>分人群营销</span><b>{brief.marketingGroup || '未选择人群'}</b></div></div><button className="script-overview-edit" type="button" onClick={onEditBrief}>修改需求</button></div><dl>{[['营销目标', brief.goal, Target], ['视频形式', brief.format, Film], ['视觉风格', brief.style, Palette], ['市场与语言', brief.market, Languages], ['目标平台', brief.platform, MonitorPlay], ['画面比例', brief.ratio, Ratio], ['成片时长', brief.duration, Clock3]].map(([label, value, Icon]) => <div key={label}><dt><Icon/>{label}</dt><dd>{value}</dd></div>)}</dl><div className="script-overview-assets" aria-label="素材附件缩略图">{overviewImages.length ? overviewImages.slice(0, 6).map((image, index) => <button type="button" onClick={() => setPreviewProductImage({ image, index })} aria-label={`查看素材附件 ${index + 1}`} key={`${image}-${index}`}><img src={image} alt=""/></button>) : <span>暂无素材附件</span>}</div></section>
     <section className="script-main" aria-labelledby="script-content-title">
       <div className="script-pane-heading"><div><small>CONTENT</small><h3 id="script-content-title">剧本内容</h3></div><span>可逐段编辑、复制、重写或锁定</span></div>
-      <div className="section-heading"><div><small>剧本标题 · English (US)</small><h3>Better Office Coffee, Packed in One Mug</h3></div><button type="button" onClick={rewriteUnlocked}><RefreshCw/>重新生成未锁定内容</button></div>
-      <article className="script-elements"><header><strong>内容要素</strong><small>人物、场景与道具</small></header><div>{scriptElements.map(([label, Icon, items]) => <section key={label}><h4><Icon/>{label}</h4><div>{items.map(item => <span key={item}>{item}</span>)}</div></section>)}</div></article>
+      <div className="section-heading"><div><small>剧本标题 · English (US)</small><h3>{demo ? cortisolWorkflow.scriptTitle : 'Better Office Coffee, Packed in One Mug'}</h3></div><button type="button" onClick={rewriteUnlocked}><RefreshCw/>重新生成未锁定内容</button></div>
+      <article className="script-elements"><header><strong>内容要素</strong><small>人物、场景、产品与道具</small></header><div>{(demo ? [['人物',UserRound,['美国成年女性 UGC 讲述者']],['场景',Image,['美国居家明亮桌面']],['产品',Package,['MYO-INOSITOL 红瓶','CORTISOL-HEALTH 蓝瓶']],['道具',Box,[]]] : scriptElements).map(([label, Icon, items]) => <section key={label}><h4><Icon/>{label}</h4><div>{!items.length && <small className="script-element-empty">暂无道具</small>}{items.map(item => {
+        const resource = demo ? Object.values(cortisolWorkflow.resources).find(resource => resource.name === item) : null
+        const thumbnail = resource?.thumbnail || (!demo && item === productTitle ? overviewImages[0] : '')
+        const descriptions = {'美国城市混合办公女性':'在家与办公室之间切换的城市上班族，以真实用户视角展示日常咖啡冲泡。','办公室工位':'用于取出器具、加粉注水、按压冲泡及清洁收纳的办公桌面。','AeroPress Go':'便携咖啡器，剧本中用于展示冲泡、微滤及整套收纳过程。','随行杯':'用于收纳咖啡器及配件，并承接冲泡后的咖啡。'}
+        return <ScriptElementTag key={item} title={item} thumbnail={thumbnail} description={resource?.description || descriptions[item]}/>
+      })}</div></section>)}</div></article>
       {sectionMeta.map(([id, label, meta]) => <article className={`script-block ${locked.includes(id) ? 'is-locked' : ''}`} key={id}>
         <header><span>{label}<small>{meta}</small></span><div className="script-block-actions">
           <button type="button" onClick={() => setEditing(editing === id ? '' : id)} aria-label={`编辑${label}`}><Pencil/></button>
@@ -492,7 +518,7 @@ function InlineAssetText({ value, onCommit, label, multiline=false }) {
   const cancel=()=>{setDraft(value);setEditing(false)}
   const onKeyDown=event=>{if(event.key==='Escape'){event.preventDefault();cancel()}else if(!multiline&&event.key==='Enter'){event.preventDefault();event.currentTarget.blur()}else if(multiline&&event.key==='Enter'&&(event.metaKey||event.ctrlKey)){event.preventDefault();event.currentTarget.blur()}}
   if(editing)return multiline?<textarea ref={textareaRef} rows={1} className="asset-inline-description" value={draft} onChange={event=>setDraft(event.target.value)} onBlur={commit} onKeyDown={onKeyDown} autoFocus aria-label={label}/>:<input className="asset-inline-title" value={draft} onChange={event=>setDraft(event.target.value)} onBlur={commit} onKeyDown={onKeyDown} autoFocus aria-label={label}/>
-  return <button type="button" className={`asset-inline-copy ${multiline?'is-description':'is-title'}`} onClick={()=>setEditing(true)} aria-label={`修改${label}`}><span>{value}</span><Pencil aria-hidden="true"/></button>
+  return <button type="button" className={`asset-inline-copy ${multiline?'is-description':'is-title'}${value?'':' is-empty'}`} onClick={()=>setEditing(true)} aria-label={`修改${label}`}><span>{value||(multiline?'点击填写资产描述':'点击填写资产名称')}</span><Pencil aria-hidden="true"/></button>
 }
 
 function CoreAssetPreview({ asset }) {
@@ -571,13 +597,34 @@ function AssetProductionSettings({ brief, settings, setSettings }) {
   </section>
 }
 
-function AssetsPanel({ onNotice }) {
-  const [items,setItems]=useState(initialCoreAssets)
+function AssetsPanel({ onNotice, demo, onResourcesChange, brief }) {
+  const sourceBrief = demo && brief.product !== cortisolDemo.product ? cortisolDemo : brief
+  const groups = demo ? [['人物',UserRound,['美国成年女性 UGC 讲述者']],['场景',Image,['美国居家明亮桌面']],['产品',Package,['MYO-INOSITOL 红瓶','CORTISOL-HEALTH 蓝瓶']],['道具',Box,[]]] : scriptElements
+  const images = sourceBrief.productImages || (demo ? cortisolProduct.images : productCatalog.find(product=>product.name===sourceBrief.product)?.images) || []
+  const importedAssets = buildScriptAssets(groups, images, demo ? cortisolWorkflow.resources : {}, demo ? cortisolImageDetails : {})
+  const signature = JSON.stringify(importedAssets)
+  const [items,setItems]=useState(importedAssets)
+  const importedKeys = useRef(new Set(importedAssets.map(asset=>asset.sourceKey)))
+  useEffect(()=>{
+    const additions = JSON.parse(signature).filter(asset=>!importedKeys.current.has(asset.sourceKey))
+    if (!additions.length) return
+    additions.forEach(asset=>importedKeys.current.add(asset.sourceKey))
+    setItems(current=>{
+      const lastId = Math.max(0,...current.map(asset=>asset.id))
+      return [...current,...additions.map((asset,index)=>({...asset,id:lastId+index+1}))]
+    })
+  },[signature])
+  useEffect(() => {
+    if (!demo || !onResourcesChange) return
+    const resources=Object.fromEntries(Object.entries(cortisolWorkflow.resources).map(([key,value])=>[key,{...value,thumbnail:''}]))
+    items.forEach(item=>{if(item.referenceKey) resources[item.referenceKey]={type:item.type,name:item.title,description:item.description,thumbnail:item.thumbnail,mediaSrc:item.mediaSrc}})
+    onResourcesChange(resources)
+  }, [items, demo, onResourcesChange])
   const [editing,setEditing]=useState(null)
   const [deleting,setDeleting]=useState(null)
   const ready=items.filter(item=>item.state==='bound').length
   const save=item=>{setItems(current=>current.some(entry=>entry.id===item.id)?current.map(entry=>entry.id===item.id?item:entry):[...current,item]);setEditing(null);onNotice?.('核心资产已保存')}
-  const add=()=>setEditing({id:Date.now(),type:'场景',title:'',description:'',thumbnail:'',skill:'场景参考生成',icon:Image,state:'missing'})
+  const add=()=>{setItems(current=>[{id:Date.now(),type:'产品',title:'',description:'',thumbnail:'',skill:'',icon:Package,state:'missing'},...current]);onNotice?.('已添加一条空资产')}
   return <div className="asset-config-list"><div className="asset-callout"><Library/><div><strong>分镜前锁定核心资产</strong><span>{ready===items.length?'核心资产已经就绪，可以继续生成分镜。':`系统从剧本中识别出 ${items.length} 项核心资产，仍有 ${items.length-ready} 项需要处理。`}</span></div><b>{ready} / {items.length}</b></div><div className="core-asset-toolbar"><div><strong>核心资产</strong><span>可添加、修改或删除，图片资产支持绑定技能生成。</span></div><button type="button" onClick={add}><Plus/>添加资产</button></div>
     {items.map(asset=>editing?.id===asset.id?<CoreAssetEditor key={asset.id} asset={editing} onSave={save} onClose={()=>setEditing(null)}/>:<CoreAssetRow key={asset.id} asset={asset} onUpdate={updated=>setItems(current=>current.map(item=>item.id===updated.id?updated:item))} onDelete={setDeleting} onNotice={onNotice}/>)}
     {!items.length&&<div className="core-asset-empty"><Library/><strong>还没有核心资产</strong><span>添加产品、人物或场景资产，为分镜保持视觉一致性。</span><button type="button" onClick={add}><Plus/>添加资产</button></div>}
@@ -619,8 +666,10 @@ export default function VideoWorkspace({ homeRequest = 0 }) {
   const [scriptConfirmed, setScriptConfirmed] = useState(false)
   const [briefParameters, setBriefParameters] = useState({ productSource: '个人商品', product: 'AeroPress Go 便携咖啡器', marketingGroup: '美国城市混合办公人群', marketingSummary: '需要在家、办公室与通勤场景间切换的咖啡饮用者', audience: '营销假设：25–34 岁、居住在美国城市、每周往返办公室且重视咖啡品质与便携性的上班族', painPoint: '办公室咖啡体验不稳定，传统冲煮设备不便携带、收纳和清洁', result: '用一套可收纳进随行杯的器具，在约 2 分钟内完成冲煮与清洁', originalSellingPoint: '8 oz 单杯容量、整套收纳进随行杯、约 2 分钟完成冲煮与清洁', buyerContent: '从工作包中取出整套器具，在办公桌完成冲煮，清洁后重新收进随行杯', materialDirection: '办公室咖啡与新鲜冲煮前后对比、桌面顶拍操作、微滤细节、清洁与收纳连续动作', videoRequirement: '制作一条 45 秒 TikTok 竖屏英文短视频，面向需要在通勤、家庭与办公室之间切换的美国城市上班族。前三秒用普通办公室咖啡与新鲜冲煮形成反差；随后展示整套器具从随行杯中取出、加入咖啡粉与热水、搅拌按压、清洁并重新收纳。只使用可验证卖点：8 oz 单杯容量、整套可收纳进随行杯、微滤减少咖啡渣、冲煮与清洁约 2 分钟。', platform: 'TikTok', duration: '45 秒', ratio: '9:16 竖屏', market: '美国 · English (US)', goal: '解释核心卖点', format: '产品功能演示', style: '原生自然', subtitle: '黑描边白字字幕', shootingPreferences: ['核心功能演示', '便携收纳展示', '边用边讲', '自然抓拍', '产品微距', '半身近景', '桌面顶拍', '固定机位', '主体锁焦', '前后对比剪辑'] })
   const isBlankTask=selectedTask?.startsWith('task-new-')
+  const [boundDemoResources,setBoundDemoResources]=useState(cortisolWorkflow.resources)
+  const currentSeed=selectedTask==='task-cortisol-demo'?cortisolDemo:undefined
   const currentTaskMode=selectedTask?taskModes[selectedTask]||'':''
-  const panels = useMemo(() => [<BriefPanel blank={isBlankTask} initialMode={currentTaskMode} onChange={setBriefParameters}/>, <ScriptPanel brief={briefParameters} onNotice={setNotice} onChange={() => setScriptConfirmed(false)} onEditBrief={() => setActive(0)}/>, <AssetsPanel onNotice={setNotice}/>, <div className="short-preferences-page"><AssetProductionSettings brief={briefParameters} settings={productionSettings} setSettings={setProductionSettings}/></div>, <StoryPanel settings={productionSettings} onNotice={setNotice}/>, <GeneratePanel generated={generated} onGenerate={id => { setGenerated(value => [...value, id]); setNotice(`片段 ${id + 1} 已生成`) }}/>], [model, generated, briefParameters, productionSettings, isBlankTask, currentTaskMode])
+  const panels = useMemo(() => [<BriefPanel seed={currentSeed} blank={isBlankTask} initialMode={currentTaskMode} onChange={setBriefParameters}/>, <ScriptPanel demo={Boolean(currentSeed)} brief={briefParameters} onNotice={setNotice} onChange={() => setScriptConfirmed(false)} onEditBrief={() => setActive(0)}/>, <AssetsPanel brief={briefParameters} onResourcesChange={setBoundDemoResources} demo={Boolean(currentSeed)} onNotice={setNotice}/>, <div className="short-preferences-page"><AssetProductionSettings brief={briefParameters} settings={productionSettings} setSettings={setProductionSettings}/></div>, <StoryPanel demo={currentSeed ? {shots:cortisolShots,resources:boundDemoResources} : undefined} settings={productionSettings} onNotice={setNotice}/>, <GeneratePanel generated={generated} onGenerate={id => { setGenerated(value => [...value, id]); setNotice(`片段 ${id + 1} 已生成`) }}/>], [model, generated, briefParameters, productionSettings, isBlankTask, currentTaskMode, currentSeed, boundDemoResources])
   useEffect(()=>{if(!notice)return;const timer=window.setTimeout(()=>setNotice(''),2400);return()=>window.clearTimeout(timer)},[notice])
   const [, , label] = steps[active]
   const openTaskCreator=()=>{setSelectedTask(null);setActive(0);setNotice('')}
@@ -637,12 +686,12 @@ export default function VideoWorkspace({ homeRequest = 0 }) {
     setProductionSettings({subtitleStyle:'outlined-white',subtitleFont:'自动匹配',shootingPreferences:[]})
     setNotice('新任务已创建，请填写创作需求')
   }
-  return <main className="video-workspace horizontal-workflow"><CreationTaskHistory tasks={tasks} selected={selectedTask} onSelect={setSelectedTask} onNew={openTaskCreator}/><section className="video-work-area">
+  return <main className="video-workspace horizontal-workflow"><CreationTaskHistory tasks={tasks} selected={selectedTask} onSelect={id => { setSelectedTask(id); if(id==='task-cortisol-demo') { setActive(0); setProductionSettings(cortisolWorkflow.preferences) } }} onNew={openTaskCreator}/><section className="video-work-area">
     {selectedTask===null?<><header className="video-work-header creation-start-header"><div><span>SHULAN / CREATIVE STUDIO</span><h1>创意中心</h1></div></header><div className="creation-start-stage"><CreativeHome onChoose={createTask}/></div></>:
     <>
     <header className="video-work-header"><div><span>快捷生成视频 / 新建项目</span><h1>{label}</h1></div><Workflow active={active} onChange={setActive}/><div><button className="quiet-button">保存草稿</button><button className="primary-button" onClick={() => { if (active === steps.length - 1) { setNotice('视频生成流程已完成'); return }; if (active === 1) { setScriptConfirmed(true); setNotice('剧本已确认，可用于准备核心资产') }; setActive(value => Math.min(steps.length - 1, value + 1)) }}>{active === steps.length - 1 ? '完成' : active === 1 && !scriptConfirmed ? '确认剧本并继续' : '继续'}{active === steps.length - 1 ? <Check/> : <ArrowRight/>}</button></div></header>
     <div className="video-stage">
-      <div className="stage-content" key={selectedTask}>{panels[active]}</div>
+      <div className="stage-content" key={selectedTask}>{panels.map((panel,index)=><div key={index} hidden={active!==index}>{panel}</div>)}</div>
     </div></>}
   </section>{notice && <div className="asset-toast video-toast"><Check/>{notice}</div>}</main>
 }
