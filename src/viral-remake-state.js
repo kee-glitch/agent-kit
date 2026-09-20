@@ -5,7 +5,7 @@ const EMPTY_PROJECT = {
   maxStep: 1,
   videoName: '',
   request: '',
-  model: 'seedance-2.0',
+  model: 'seedance 2.0',
   assets: [],
   documents: {},
   generation: {},
@@ -17,20 +17,35 @@ export function createInitialProject(saved = {}) {
     try { value = JSON.parse(saved) } catch { value = {} }
   }
   if (!value || typeof value !== 'object' || Array.isArray(value)) value = {}
+  const assets = Array.isArray(value.assets) ? value.assets.filter(item => item && typeof item === 'object' && typeof item.role === 'string' && typeof item.name === 'string').map(item => ({
+    id: typeof item.id === 'string' ? item.id : `${item.role}-${item.name}`,
+    role: item.role,
+    name: item.name,
+    ...(typeof item.path === 'string' ? { path: item.path } : {}),
+    ...(typeof item.preview === 'string' ? { preview: item.preview } : {}),
+  })) : []
+  const documents = value.documents && typeof value.documents === 'object' && !Array.isArray(value.documents)
+    ? Object.fromEntries(Object.entries(value.documents).filter(([, document]) => typeof document === 'string'))
+    : {}
+  const generation = value.generation && typeof value.generation === 'object' && !Array.isArray(value.generation)
+    ? Object.fromEntries(Object.entries(value.generation).flatMap(([id, status]) => status === 'done' || status === 'idle' ? [[id, status]] : status === 'running' ? [[id, 'idle']] : []))
+    : {}
   return {
     ...EMPTY_PROJECT,
-    ...value,
     step: Number.isInteger(value.step) ? Math.min(5, Math.max(1, value.step)) : 1,
     maxStep: Number.isInteger(value.maxStep) ? Math.min(5, Math.max(1, value.maxStep)) : 1,
-    assets: Array.isArray(value.assets) ? value.assets : [],
-    documents: value.documents && typeof value.documents === 'object' ? value.documents : {},
-    generation: value.generation && typeof value.generation === 'object' ? value.generation : {},
+    videoName: typeof value.videoName === 'string' ? value.videoName : '',
+    request: typeof value.request === 'string' ? value.request : '',
+    model: typeof value.model === 'string' && ['seedance 2.0 mini', 'seedance 2.0 fast', 'seedance 2.0', 'seedance 2.5'].includes(value.model) ? value.model : EMPTY_PROJECT.model,
+    assets,
+    documents,
+    generation,
   }
 }
 
 export function canAdvance(project) {
   if (project.step !== 1) return true
-  return Boolean(project.videoName && project.request.trim())
+  return Boolean(typeof project.videoName === 'string' && project.videoName && typeof project.request === 'string' && project.request.trim())
 }
 
 export function advanceStep(project) {
@@ -44,12 +59,31 @@ export function updateDocument(project, key, value) {
 }
 
 export function setCurrentStep(project, requestedStep) {
+  if (requestedStep > 1 && !Boolean(project.videoName && typeof project.request === 'string' && project.request.trim())) return { ...project, step: 1 }
   const step = Math.min(project.maxStep, Math.max(1, requestedStep))
   return { ...project, step }
 }
 
 export function setGenerationStatus(project, segmentId, status) {
   return { ...project, generation: { ...project.generation, [segmentId]: status } }
+}
+
+export function queueGeneration(project, segmentIds) {
+  const started = segmentIds.filter(id => project.generation[id] !== 'running')
+  return {
+    started,
+    project: {
+      ...project,
+      generation: { ...project.generation, ...Object.fromEntries(started.map(id => [id, 'running'])) },
+    },
+  }
+}
+
+export function clearRunningStatuses(project) {
+  return {
+    ...project,
+    generation: Object.fromEntries(Object.entries(project.generation).map(([id, status]) => [id, status === 'running' ? 'idle' : status])),
+  }
 }
 
 export function serializeProject(project) {

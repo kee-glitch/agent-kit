@@ -9,8 +9,8 @@ import {
   segmentDocuments, steps, storyboardText,
 } from './viral-remake-data'
 import {
-  STORAGE_KEY, advanceStep, canAdvance, createInitialProject, persistProject,
-  setCurrentStep, setGenerationStatus, updateDocument,
+  STORAGE_KEY, advanceStep, canAdvance, clearRunningStatuses, createInitialProject, persistProject,
+  queueGeneration, setCurrentStep, setGenerationStatus, updateDocument,
 } from './viral-remake-state'
 import './viral-remake.css'
 
@@ -44,7 +44,7 @@ function StepOne({ project, setProject, onDemo, onNext, notify }) {
   const addAsset = (event, role) => { const file = event.target.files?.[0]; if (!file) return; setProject(value => ({ ...value, assets: [...value.assets.filter(item => item.role !== role), { id: `${role}-${Date.now()}`, role, name: file.name, preview: URL.createObjectURL(file) }] })) }
   return <section className="remake-stage"><div className="remake-stage-heading"><div><span className="remake-kicker">STEP 01</span><h1>准备复刻素材</h1><p>上传模板视频，描述需要替换的对象，并为每个对象添加清晰参考图。</p></div><button className="remake-demo-button" onClick={onDemo}><Sparkles/>加载 Demo 素材</button></div>
     <div className="remake-form-grid"><div className="remake-panel remake-source-panel"><div className="remake-panel-title"><span><Video/></span><div><h2>模板视频</h2><p>支持 MP4 / MOV，建议 9:16 竖屏</p></div></div><UploadCard icon={Play} title="上传需要复刻的视频" note="拖拽到这里，或点击选择文件" accept="video/*" name={project.videoName} onChange={event => { const file = event.target.files?.[0]; if (file) setProject(value => ({ ...value, videoName: file.name })) }}/><div className="remake-field"><label htmlFor="replace-request">替换需求</label><textarea id="replace-request" value={project.request} onChange={event => setProject(value => ({ ...value, request: event.target.value }))} placeholder="例如：人物和服饰替换为人物形象，手持产品替换为产品外观，其他保持不变。"/><small>{project.request.length}/500</small></div></div>
-      <div className="remake-panel"><div className="remake-panel-title"><span><ImageIcon/></span><div><h2>替换素材</h2><p>可以同时替换人物、产品和其他画面元素</p></div></div><div className="remake-asset-uploads">{['人物与服饰','手持产品','胶囊 / 方糖'].map((role, index) => { const asset = project.assets.find(item => item.role === role) || project.assets[index]; return <UploadCard key={role} icon={ImageIcon} title={`上传${role}参考图`} note="JPG / PNG，建议主体清晰" accept="image/*" name={asset?.name} onChange={event => addAsset(event, role)}/> })}</div><div className="remake-field"><label htmlFor="video-model">视频生成模型</label><select id="video-model" value={project.model} onChange={event => setProject(value => ({ ...value, model: event.target.value }))}>{MODELS.map(model => <option key={model}>{model}</option>)}</select><p className="remake-field-hint">Seedance 2.5 将按每 30 秒拆分生成，其余模型按每 15 秒拆分。</p></div></div></div>
+      <div className="remake-panel"><div className="remake-panel-title"><span><ImageIcon/></span><div><h2>替换素材</h2><p>可以同时替换人物、产品和其他画面元素</p></div></div><div className="remake-asset-uploads">{['人物与服饰','手持产品','胶囊 / 方糖'].map((role) => { const asset = project.assets.find(item => item.role === role); return <UploadCard key={role} icon={ImageIcon} title={`上传${role}参考图`} note="JPG / PNG，建议主体清晰" accept="image/*" name={asset?.name} onChange={event => addAsset(event, role)}/> })}</div><div className="remake-field"><label htmlFor="video-model">视频生成模型</label><select id="video-model" value={project.model} onChange={event => setProject(value => ({ ...value, model: event.target.value }))}>{MODELS.map(model => <option key={model}>{model}</option>)}</select><p className="remake-field-hint">Seedance 2.5 将按每 30 秒拆分生成，其余模型按每 15 秒拆分。</p></div></div></div>
     <div className="remake-stage-footer"><span>{!canAdvance(project) ? '请先上传模板视频并填写替换需求' : `已准备 ${project.assets.length} 项替换素材`}</span><button className="remake-primary" disabled={!canAdvance(project)} onClick={() => canAdvance(project) ? onNext() : notify('请先补充模板视频与替换需求')}>开始拆解视频<ArrowRight/></button></div></section>
 }
 
@@ -72,10 +72,31 @@ function StepFour({ project, setProject, onNext, save, regenerate, regenerating 
 }
 
 function StepFive({ project, setProject, notify, openSegment }) {
-  const timers = useRef([])
-  useEffect(() => () => timers.current.forEach(clearTimeout), [])
-  const generate = (id) => { if (project.generation[id] === 'running') return; setProject(value => setGenerationStatus(value, id, 'running')); const timer = window.setTimeout(() => { setProject(value => setGenerationStatus(value, id, 'done')); notify(`${segmentDocuments.find(item => item.id === id)?.title}生成完成`) }, 1400); timers.current.push(timer) }
-  const batch = () => segmentDocuments.forEach((item, index) => { const timer = window.setTimeout(() => generate(item.id), index * 220); timers.current.push(timer) })
+  const timers = useRef(new Map())
+  const inFlight = useRef(new Set())
+  useEffect(() => () => {
+    timers.current.forEach(clearTimeout)
+    timers.current.clear()
+    inFlight.current.clear()
+    setProject(value => clearRunningStatuses(value))
+  }, [setProject])
+  const beginGeneration = (ids) => {
+    const started = ids.filter(id => !inFlight.current.has(id))
+    if (!started.length) { notify('所选片段已在生成中'); return }
+    started.forEach(id => inFlight.current.add(id))
+    setProject(value => queueGeneration(value, started).project)
+    started.forEach((id, index) => {
+      const timer = window.setTimeout(() => {
+        inFlight.current.delete(id)
+        timers.current.delete(id)
+        setProject(value => setGenerationStatus(value, id, 'done'))
+        notify(`${segmentDocuments.find(item => item.id === id)?.title}生成完成`)
+      }, 1400 + index * 220)
+      timers.current.set(id, timer)
+    })
+  }
+  const generate = id => beginGeneration([id])
+  const batch = () => beginGeneration(segmentDocuments.map(item => item.id))
   return <section className="remake-stage"><div className="remake-stage-heading"><div><span className="remake-kicker">STEP 05</span><h1>生成复刻视频</h1><p>检查每段故事面板后单独生成，或一次性提交全部片段。</p></div><button className="remake-primary" onClick={batch}><Sparkles/>批量生成全部</button></div><div className="remake-generation-overview"><div><b>3</b><span>生成片段</span></div><div><b>41s</b><span>合成后时长</span></div><div><b>9:16</b><span>TikTok 画幅</span></div><div><b>{project.model}</b><span>视频模型</span></div></div><div className="remake-generate-list">{segmentDocuments.map((segment, index) => { const status = project.generation[segment.id] || 'idle'; const thumb = replacedBoards[index]; return <article key={segment.id}><button className="remake-video-thumb" onClick={() => openSegment(segment)}><img src={thumb} alt={`${segment.title}预览`}/><span><Play/></span><i>{segment.duration}</i></button><div className="remake-video-info"><header><div><span>0{index + 1}</span><div><h2>{segment.title}</h2><p>{segment.time} · {segment.shots}</p></div></div><em className={status}>{status === 'done' ? '已完成' : status === 'running' ? '生成中' : '待生成'}</em></header><p>{project.documents[segment.id] ?? segment.content}</p><footer><button onClick={() => openSegment(segment)}><FileText/>查看故事面板</button><button className="primary" disabled={status === 'running'} onClick={() => generate(segment.id)}>{status === 'running' ? <LoaderCircle className="spin"/> : status === 'done' ? <RefreshCw/> : <Video/>}{status === 'done' ? '重新生成' : status === 'running' ? '生成中' : '生成视频'}</button></footer></div></article> })}</div><div className="remake-stage-footer"><button className="remake-secondary" onClick={() => setProject(value => setCurrentStep(value, 4))}><ArrowLeft/>返回片段编辑</button><span>生成结果仅用于前端流程演示</span></div></section>
 }
 

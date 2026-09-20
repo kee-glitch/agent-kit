@@ -11,7 +11,7 @@ export const demoRequest = '根据视频拆解脚本进行元素替换：人物�
 export const demoAssets = [
   { id: 'person', name: '人物形象.jpg', role: '人物与服饰', path: './viral-remake-demo/person.jpg' },
   { id: 'product', name: '产品外观.jpg', role: '手持产品', path: './viral-remake-demo/product.jpg' },
-  { id: 'gummy', name: '产品方糖心态.png', role: '手持胶囊', path: './viral-remake-demo/gummy.png' },
+  { id: 'gummy', name: '产品方糖心态.png', role: '胶囊 / 方糖', path: './viral-remake-demo/gummy.png' },
 ]
 
 export const originalBoards = [1, 2, 3].map(index => `./viral-remake-demo/original-${index}.jpg`)
