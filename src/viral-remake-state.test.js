@@ -4,6 +4,8 @@ import {
   advanceStep,
   canAdvance,
   createInitialProject,
+  setCurrentStep,
+  setGenerationStatus,
   updateDocument,
 } from './viral-remake-state.js'
 
@@ -22,4 +24,17 @@ test('编辑故事面板返回不可变的新状态', () => {
   const next = updateDocument(project, 'storyboard', '新内容')
   assert.equal(next.documents.storyboard, '新内容')
   assert.notEqual(next, project)
+})
+
+test('不能跳转到尚未解锁的步骤', () => {
+  const project = createInitialProject({ step: 2, maxStep: 2 })
+  assert.equal(setCurrentStep(project, 5).step, 2)
+  assert.equal(setCurrentStep(project, 1).step, 1)
+})
+
+test('片段生成状态独立更新', () => {
+  const project = createInitialProject()
+  const next = setGenerationStatus(project, 'segment-2', 'running')
+  assert.equal(next.generation['segment-2'], 'running')
+  assert.equal(next.generation['segment-1'], undefined)
 })

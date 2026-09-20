@@ -43,7 +43,15 @@ export function updateDocument(project, key, value) {
   return { ...project, documents: { ...project.documents, [key]: value } }
 }
 
+export function setCurrentStep(project, requestedStep) {
+  const step = Math.min(project.maxStep, Math.max(1, requestedStep))
+  return { ...project, step }
+}
+
+export function setGenerationStatus(project, segmentId, status) {
+  return { ...project, generation: { ...project.generation, [segmentId]: status } }
+}
+
 export function serializeProject(project) {
   return JSON.stringify(project)
 }
-
