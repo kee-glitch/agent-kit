@@ -58,6 +58,26 @@ export function updateDocument(project, key, value) {
   return { ...project, documents: { ...project.documents, [key]: value } }
 }
 
+export function addReplacementAsset(project, asset) {
+  return { ...project, assets: [...project.assets, asset] }
+}
+
+export function updateReplacementAsset(project, assetId, patch) {
+  return { ...project, assets: project.assets.map(asset => asset.id === assetId ? { ...asset, ...patch } : asset) }
+}
+
+export function removeReplacementAsset(project, assetId) {
+  return { ...project, assets: project.assets.filter(asset => asset.id !== assetId) }
+}
+
+export function clearVideo(project) {
+  return replaceVideo(project, '')
+}
+
+export function replaceVideo(project, videoName) {
+  return { ...project, step: 1, maxStep: 1, videoName, documents: {}, generation: {} }
+}
+
 export function setCurrentStep(project, requestedStep) {
   if (requestedStep > 1 && !Boolean(project.videoName && typeof project.request === 'string' && project.request.trim())) return { ...project, step: 1 }
   const step = Math.min(project.maxStep, Math.max(1, requestedStep))

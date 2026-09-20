@@ -2,15 +2,16 @@ import React, { useEffect, useRef, useState } from 'react'
 import {
   ArrowLeft, ArrowRight, Check, CheckCircle2, ChevronRight, CircleHelp, Clock3,
   FilePenLine, FileText, Film, Image as ImageIcon, Layers3, LoaderCircle, Lock,
-  Maximize2, Play, RefreshCw, RotateCcw, Save, Sparkles, Upload, Video, WandSparkles, X,
+  Maximize2, Play, Plus, RefreshCw, RotateCcw, Save, Sparkles, Trash2, Upload, Video, WandSparkles, X,
 } from 'lucide-react'
 import {
   breakdownText, demoAssets, demoRequest, modes, originalBoards, replacedBoards,
   segmentDocuments, steps, storyboardText,
 } from './viral-remake-data'
 import {
-  STORAGE_KEY, advanceStep, canAdvance, clearRunningStatuses, createInitialProject, persistProject,
-  queueGeneration, setCurrentStep, setGenerationStatus, updateDocument,
+  STORAGE_KEY, addReplacementAsset, advanceStep, canAdvance, clearRunningStatuses, clearVideo,
+  createInitialProject, persistProject, queueGeneration, removeReplacementAsset, setCurrentStep,
+  setGenerationStatus, replaceVideo, updateDocument, updateReplacementAsset,
 } from './viral-remake-state'
 import './viral-remake.css'
 
@@ -36,16 +37,37 @@ function WorkflowHeader({ project, onBack, onStep, onSave, onReset }) {
     <nav className="remake-steps" aria-label="项目进度">{steps.map((label, index) => { const number = index + 1; const complete = number < project.step; const active = number === project.step; const unlocked = number <= project.maxStep; return <button key={label} className={`${active ? 'active' : ''} ${complete ? 'complete' : ''}`} disabled={!unlocked} onClick={() => onStep(number)}><span>{complete ? <Check/> : number}</span><b>{label}</b>{index < steps.length - 1 && <i/>}</button> })}</nav></>
 }
 
-function UploadCard({ icon: Icon, title, note, accept, name, onChange }) {
-  return <label className={`remake-upload-card ${name ? 'filled' : ''}`}><input type="file" accept={accept} onChange={onChange}/><span><Icon/></span><div><b>{name || title}</b><small>{name ? '点击可重新选择' : note}</small></div>{name ? <CheckCircle2 className="upload-check"/> : <Upload className="upload-arrow"/>}</label>
+function UploadCard({ icon: Icon, title, note, accept, onChange }) {
+  return <label className="remake-upload-card"><input type="file" accept={accept} onChange={onChange}/><span><Icon/></span><div><b>{title}</b><small>{note}</small></div><Upload className="upload-arrow"/></label>
+}
+
+function ReplacementAssetRow({ asset, onUpdate, onRemove }) {
+  const chooseFile = event => {
+    const file = event.target.files?.[0]
+    if (file) {
+      const reader = new FileReader()
+      reader.onload = () => onUpdate({ name: file.name, preview: String(reader.result) })
+      reader.readAsDataURL(file)
+    }
+    event.target.value = ''
+  }
+  return <article className="remake-asset-row">
+    <div className="remake-asset-preview">{asset.preview || asset.path ? <img src={asset.preview || asset.path} alt=""/> : <ImageIcon/>}</div>
+    <div className="remake-asset-copy"><label><span>替换对象名称</span><input value={asset.role} onChange={event => onUpdate({ role: event.target.value })} placeholder="例如：人物、产品、卧室背景"/></label><small>{asset.name || '尚未选择参考图'}</small></div>
+    <div className="remake-row-actions"><label className="remake-file-action"><input type="file" accept="image/*" onChange={chooseFile}/><Upload/>替换图片</label><button type="button" className="remake-delete-action" onClick={onRemove} aria-label={`删除${asset.role || '替换素材'}`}><Trash2/>删除</button></div>
+  </article>
 }
 
 function StepOne({ project, setProject, onDemo, onNext, notify }) {
-  const addAsset = (event, role) => { const file = event.target.files?.[0]; if (!file) return; setProject(value => ({ ...value, assets: [...value.assets.filter(item => item.role !== role), { id: `${role}-${Date.now()}`, role, name: file.name, preview: URL.createObjectURL(file) }] })) }
+  const makeAssetId = () => globalThis.crypto?.randomUUID?.() || `asset-${Date.now()}`
+  const addAsset = () => { const id = makeAssetId(); setProject(value => addReplacementAsset(value, { id, role: '', name: '' })) }
+  const updateAsset = (id, patch) => setProject(value => updateReplacementAsset(value, id, patch))
+  const removeAsset = id => setProject(value => removeReplacementAsset(value, id))
+  const chooseVideo = event => { const file = event.target.files?.[0]; if (file) setProject(value => replaceVideo(value, file.name)); event.target.value = '' }
   return <section className="remake-stage"><div className="remake-stage-heading"><div><span className="remake-kicker">STEP 01</span><h1>准备复刻素材</h1><p>上传模板视频，描述需要替换的对象，并为每个对象添加清晰参考图。</p></div><button className="remake-demo-button" onClick={onDemo}><Sparkles/>加载 Demo 素材</button></div>
-    <div className="remake-form-grid"><div className="remake-panel remake-source-panel"><div className="remake-panel-title"><span><Video/></span><div><h2>模板视频</h2><p>支持 MP4 / MOV，建议 9:16 竖屏</p></div></div><UploadCard icon={Play} title="上传需要复刻的视频" note="拖拽到这里，或点击选择文件" accept="video/*" name={project.videoName} onChange={event => { const file = event.target.files?.[0]; if (file) setProject(value => ({ ...value, videoName: file.name })) }}/><div className="remake-field"><label htmlFor="replace-request">替换需求</label><textarea id="replace-request" value={project.request} onChange={event => setProject(value => ({ ...value, request: event.target.value }))} placeholder="例如：人物和服饰替换为人物形象，手持产品替换为产品外观，其他保持不变。"/><small>{project.request.length}/500</small></div></div>
-      <div className="remake-panel"><div className="remake-panel-title"><span><ImageIcon/></span><div><h2>替换素材</h2><p>可以同时替换人物、产品和其他画面元素</p></div></div><div className="remake-asset-uploads">{['人物与服饰','手持产品','胶囊 / 方糖'].map((role) => { const asset = project.assets.find(item => item.role === role); return <UploadCard key={role} icon={ImageIcon} title={`上传${role}参考图`} note="JPG / PNG，建议主体清晰" accept="image/*" name={asset?.name} onChange={event => addAsset(event, role)}/> })}</div><div className="remake-field"><label htmlFor="video-model">视频生成模型</label><select id="video-model" value={project.model} onChange={event => setProject(value => ({ ...value, model: event.target.value }))}>{MODELS.map(model => <option key={model}>{model}</option>)}</select><p className="remake-field-hint">Seedance 2.5 将按每 30 秒拆分生成，其余模型按每 15 秒拆分。</p></div></div></div>
-    <div className="remake-stage-footer"><span>{!canAdvance(project) ? '请先上传模板视频并填写替换需求' : `已准备 ${project.assets.length} 项替换素材`}</span><button className="remake-primary" disabled={!canAdvance(project)} onClick={() => canAdvance(project) ? onNext() : notify('请先补充模板视频与替换需求')}>开始拆解视频<ArrowRight/></button></div></section>
+    <div className="remake-form-grid"><div className="remake-panel remake-source-panel"><div className="remake-panel-title"><span><Video/></span><div><h2>模板视频</h2><p>支持 MP4 / MOV，建议 9:16 竖屏</p></div></div>{project.videoName ? <div className="remake-selected-file"><span><Play/></span><div><b>{project.videoName}</b><small>模板视频已就绪</small></div><div className="remake-row-actions"><label className="remake-file-action"><input type="file" accept="video/*" onChange={chooseVideo}/><Upload/>替换视频</label><button type="button" className="remake-delete-action" onClick={() => setProject(value => clearVideo(value))}><Trash2/>删除</button></div></div> : <UploadCard icon={Play} title="上传需要复刻的视频" note="点击选择 MP4 / MOV 文件" accept="video/*" onChange={chooseVideo}/>}<div className="remake-field"><label htmlFor="replace-request">替换需求</label><textarea id="replace-request" maxLength="500" value={project.request} onChange={event => setProject(value => ({ ...value, request: event.target.value }))} placeholder="例如：人物和服饰替换为人物形象，手持产品替换为产品外观，其他保持不变。"/><small>{project.request.length}/500</small></div></div>
+      <div className="remake-panel"><div className="remake-panel-title"><span><ImageIcon/></span><div><h2>替换素材</h2><p>按本次视频内容，自由新增人物、产品、场景等替换对象</p></div></div><div className="remake-asset-uploads">{project.assets.length ? project.assets.map(asset => <ReplacementAssetRow key={asset.id} asset={asset} onUpdate={patch => updateAsset(asset.id, patch)} onRemove={() => removeAsset(asset.id)}/>) : <div className="remake-assets-empty"><ImageIcon/><b>暂未添加替换素材</b><span>不同视频需要的对象不同，请按需新增。</span></div>}<button type="button" className="remake-add-asset" onClick={addAsset}><Plus/>新增替换素材</button></div><div className="remake-field"><label htmlFor="video-model">视频生成模型</label><select id="video-model" value={project.model} onChange={event => setProject(value => ({ ...value, model: event.target.value }))}>{MODELS.map(model => <option key={model}>{model}</option>)}</select><p className="remake-field-hint">Seedance 2.5 将按每 30 秒拆分生成，其余模型按每 15 秒拆分。</p></div></div></div>
+    <div className="remake-stage-footer"><span>{!canAdvance(project) ? '请先上传模板视频并填写替换需求' : `已准备 ${project.assets.filter(asset => asset.role.trim() && asset.name).length} 项替换素材`}</span><button className="remake-primary" disabled={!canAdvance(project)} onClick={() => canAdvance(project) ? onNext() : notify('请先补充模板视频与替换需求')}>开始拆解视频<ArrowRight/></button></div></section>
 }
 
 function BoardGallery({ originals = false, onOpen }) {

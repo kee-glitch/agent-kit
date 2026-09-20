@@ -1,14 +1,19 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
+  addReplacementAsset,
   advanceStep,
   canAdvance,
+  clearVideo,
   createInitialProject,
   persistProject,
   queueGeneration,
+  removeReplacementAsset,
+  replaceVideo,
   clearRunningStatuses,
   setCurrentStep,
   setGenerationStatus,
+  updateReplacementAsset,
   updateDocument,
 } from './viral-remake-state.js'
 import { demoAssets, originalBoards, replacedBoards } from './viral-remake-data.js'
@@ -87,6 +92,70 @@ test('批量排队只启动尚未运行的片段并可统一回退', () => {
   })
 })
 
-test('三个 Demo 素材角色与上传槽一一对应', () => {
+test('三个 Demo 素材作为可编辑示例加载', () => {
   assert.deepEqual(demoAssets.map(item => item.role), ['人物与服饰', '手持产品', '胶囊 / 方糖'])
+})
+
+test('可新增任意替换对象且不会覆盖已有素材', () => {
+  const project = createInitialProject({ assets: [{ id: 'person', role: '人物', name: 'person.jpg' }] })
+  const next = addReplacementAsset(project, { id: 'scene', role: '卧室背景', name: 'room.png' })
+  assert.deepEqual(next.assets.map(item => item.role), ['人物', '卧室背景'])
+})
+
+test('可按素材 id 修改名称和替换文件', () => {
+  const project = createInitialProject({ assets: [
+    { id: 'person', role: '人物', name: 'old.jpg' },
+    { id: 'product', role: '产品', name: 'jar.jpg' },
+  ] })
+  const next = updateReplacementAsset(project, 'person', { role: '人物与服饰', name: 'new.jpg' })
+  assert.deepEqual(next.assets, [
+    { id: 'person', role: '人物与服饰', name: 'new.jpg' },
+    { id: 'product', role: '产品', name: 'jar.jpg' },
+  ])
+})
+
+test('删除单个替换素材不会影响其他素材', () => {
+  const project = createInitialProject({ assets: [
+    { id: 'person', role: '人物', name: 'person.jpg' },
+    { id: 'product', role: '产品', name: 'jar.jpg' },
+  ] })
+  assert.deepEqual(removeReplacementAsset(project, 'person').assets.map(item => item.id), ['product'])
+})
+
+test('删除模板视频会保留替换需求和素材', () => {
+  const project = createInitialProject({
+    step: 5,
+    maxStep: 5,
+    videoName: 'demo.mp4',
+    request: '替换人物',
+    assets: [{ id: 'person', role: '人物', name: 'person.jpg' }],
+    documents: { storyboard: '旧故事面板' },
+    generation: { 'segment-1': 'done' },
+  })
+  const next = clearVideo(project)
+  assert.equal(next.videoName, '')
+  assert.equal(next.request, '替换人物')
+  assert.equal(next.assets.length, 1)
+  assert.equal(next.step, 1)
+  assert.equal(next.maxStep, 1)
+  assert.deepEqual(next.documents, {})
+  assert.deepEqual(next.generation, {})
+})
+
+test('替换模板视频会使旧拆解和生成结果失效', () => {
+  const project = createInitialProject({
+    step: 5,
+    maxStep: 5,
+    videoName: 'old.mp4',
+    request: '替换产品',
+    documents: { breakdown: '旧拆解' },
+    generation: { 'segment-1': 'done' },
+  })
+  const next = replaceVideo(project, 'new.mp4')
+  assert.equal(next.videoName, 'new.mp4')
+  assert.equal(next.request, '替换产品')
+  assert.equal(next.step, 1)
+  assert.equal(next.maxStep, 1)
+  assert.deepEqual(next.documents, {})
+  assert.deepEqual(next.generation, {})
 })
