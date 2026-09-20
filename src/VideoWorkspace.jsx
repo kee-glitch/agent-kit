@@ -23,6 +23,10 @@ const steps = [
   ['generate', Video, '视频生成', '未开始']
 ]
 
+function ValidatedField({ error, className = '', children }) {
+  return <div className={`validated-field ${error?'has-error':''} ${className}`.trim()}>{children}<small className={`field-validation-error ${error?'':'is-placeholder'}`} role={error?'alert':undefined} aria-hidden={error?undefined:'true'}>{error?<><CircleAlert/>{error}</>:<>&nbsp;</>}</small></div>
+}
+
 function createDemoAudio() {
   const rate=8000, count=rate*2, bytes=new Uint8Array(44+count*2), view=new DataView(bytes.buffer)
   const write=(offset,text)=>{for(let i=0;i<text.length;i++)bytes[offset+i]=text.charCodeAt(i)}
@@ -273,6 +277,8 @@ function CreationStartPage({ onChoose }) {
 }
 
 function BriefPanel({ onChange, blank = false, initialMode = '', seed }) {
+  const [errors,setErrors]=useState({})
+  useEffect(()=>{const receive=event=>setErrors(event.detail||{});window.addEventListener('brief-validation',receive);return()=>window.removeEventListener('brief-validation',receive)},[])
   const initialProductSource=initialMode==='free'?'自由创作':initialMode==='team'?'团队商品':initialMode==='personal'?'个人商品':blank?'请选择创作起点':briefOptions.product[0]
   const [productSource, setProductSource] = useState(seed?.productSource ?? (initialProductSource))
   const [selectedProductName, setSelectedProductName] = useState(seed?.product ?? (blank ? '请选择商品' : 'AeroPress Go 便携咖啡器'))
@@ -365,27 +371,44 @@ function BriefPanel({ onChange, blank = false, initialMode = '', seed }) {
   const commodityLibraryName = productSource === '团队商品' ? '团队商品库' : '个人商品库'
   const activeMarketingGroup = marketingGroups.find(group => group.name === selectedMarketingGroup)
   useEffect(() => onChange?.({ productSource, product: selectedProductName, productImages, marketingGroup: selectedMarketingGroup, marketingSummary: activeMarketingGroup?.summary || '', audience: activeMarketingGroup?.targetAudience || '', painPoint: activeMarketingGroup?.painPoint || '', result: activeMarketingGroup?.result || '', originalSellingPoint: activeMarketingGroup?.originalSellingPoint || '', buyerContent: activeMarketingGroup?.buyerContent || '', materialDirection: activeMarketingGroup?.materialDirection || '', videoRequirement, platform, duration: selectedDuration, ratio, market, speechRate, ...creativeDirection }), [productSource, selectedProductName, productImages, selectedMarketingGroup, activeMarketingGroup, videoRequirement, platform, selectedDuration, ratio, market, speechRate, creativeDirection, onChange])
+  useEffect(()=>setErrors(current=>{
+    const next={...current},filled=value=>value&&!String(value).startsWith('请选择')
+    if(filled(productSource))delete next.productSource
+    if(filled(selectedProductName))delete next.product
+    if(filled(selectedMarketingGroup))delete next.marketingGroup
+    if(productImages.length||videoRequirement.trim()){delete next.productImages;delete next.videoRequirement}
+    if(filled(platform))delete next.platform
+    if(filled(ratio))delete next.ratio
+    if(filled(selectedDuration))delete next.duration
+    if(filled(market))delete next.market
+    if(filled(speechRate))delete next.speechRate
+    if(filled(creativeDirection.goal))delete next.goal
+    if(filled(creativeDirection.format))delete next.format
+    if(filled(creativeDirection.style))delete next.style
+    return Object.keys(next).length===Object.keys(current).length?current:next
+  }),[productSource,selectedProductName,selectedMarketingGroup,productImages,videoRequirement,platform,ratio,selectedDuration,market,speechRate,creativeDirection])
   return <div className="video-form-grid">
     <div className="brief-section-heading span-2"><span>01</span><div><h3>基础商品与人群配置</h3><p>确定商品、目标人群和可用于生成的参考素材</p></div></div>
-    <CustomSelect icon={Package} label="创作起点" value={productSource} options={briefOptions.product} onChange={changeProductSource} className={productSource === '自由创作' ? 'span-2' : ''}/>
+      <ValidatedField error={errors.productSource} className={productSource === '自由创作' ? 'span-2' : ''}><CustomSelect icon={Package} label="创作起点" value={productSource} options={briefOptions.product} onChange={changeProductSource}/></ValidatedField>
     {usesCommodityAssets && (
-      <CustomSelect icon={Package} label="绑定商品" value={selectedProductName} options={productCatalog.map(product => product.name)} optionImages={Object.fromEntries(productCatalog.map(product => [product.name, product.images[0]]))} onChange={productName => { const product = productCatalog.find(item => item.name === productName) || productCatalog[0]; productImages.forEach(image => image.startsWith('blob:') && URL.revokeObjectURL(image)); setSelectedProductName(product.name); setSelectedMarketingGroup('请选择营销组别'); loadCatalogImages(product) }}/>
+      <ValidatedField error={errors.product}><CustomSelect icon={Package} label="绑定商品" value={selectedProductName} options={productCatalog.map(product => product.name)} optionImages={Object.fromEntries(productCatalog.map(product => [product.name, product.images[0]]))} onChange={productName => { const product = productCatalog.find(item => item.name === productName) || productCatalog[0]; productImages.forEach(image => image.startsWith('blob:') && URL.revokeObjectURL(image)); setSelectedProductName(product.name); setSelectedMarketingGroup('请选择营销组别'); loadCatalogImages(product) }}/></ValidatedField>
     )}
-    {usesCommodityAssets && selectedProductName !== '请选择商品' && <div className="marketing-group-config span-2"><CustomSelect label="分人群营销" value={selectedMarketingGroup} options={marketingGroups.map(group => group.name)} optionDescriptions={Object.fromEntries(marketingGroups.map(group => [group.name, group.summary]))} onChange={setSelectedMarketingGroup}/><small className="marketing-group-source">来自分人群营销实验库 · 用于确定这条视频重点说服的人群</small>{activeMarketingGroup && <article className="marketing-group-card"><header><div><strong>{activeMarketingGroup.name}</strong><span>{activeMarketingGroup.summary}</span></div><button type="button" onClick={() => setSelectedMarketingGroup('请选择营销组别')}>清除</button></header><dl><div><dt><UserRound/>目标受众</dt><dd>{activeMarketingGroup.targetAudience}</dd></div><div><dt><ShieldAlert/>受众核心痛点</dt><dd>{activeMarketingGroup.painPoint}</dd></div><div><dt><Check/>预期达成效果</dt><dd>{activeMarketingGroup.result}</dd></div><div><dt><Box/>产品原始卖点</dt><dd>{activeMarketingGroup.originalSellingPoint}</dd></div><div><dt><Settings2/>营销转化买点</dt><dd>{activeMarketingGroup.buyerContent}</dd></div></dl></article>}</div>}
+    {usesCommodityAssets && selectedProductName !== '请选择商品' && <ValidatedField error={errors.marketingGroup} className="span-2"><div className="marketing-group-config"><CustomSelect label="分人群营销" value={selectedMarketingGroup} options={marketingGroups.map(group => group.name)} optionDescriptions={Object.fromEntries(marketingGroups.map(group => [group.name, group.summary]))} onChange={setSelectedMarketingGroup}/><small className="marketing-group-source">来自分人群营销实验库 · 用于确定这条视频重点说服的人群</small>{activeMarketingGroup && <article className="marketing-group-card"><header><div><strong>{activeMarketingGroup.name}</strong><span>{activeMarketingGroup.summary}</span></div><button type="button" onClick={() => setSelectedMarketingGroup('请选择营销组别')}>清除</button></header><dl><div><dt><UserRound/>目标受众</dt><dd>{activeMarketingGroup.targetAudience}</dd></div><div><dt><ShieldAlert/>受众核心痛点</dt><dd>{activeMarketingGroup.painPoint}</dd></div><div><dt><Check/>预期达成效果</dt><dd>{activeMarketingGroup.result}</dd></div><div><dt><Box/>产品原始卖点</dt><dd>{activeMarketingGroup.originalSellingPoint}</dd></div><div><dt><Settings2/>营销转化买点</dt><dd>{activeMarketingGroup.buyerContent}</dd></div></dl></article>}</div></ValidatedField>}
     <div className={`product-attachments span-2 ${productDragging ? 'is-dragging' : ''} ${productImagesLoading || productImagesUploading ? 'is-loading' : ''}`} tabIndex="0" onDragEnter={event => { event.preventDefault(); if (!productImagesLoading && !productImagesUploading) setProductDragging(true) }} onDragOver={event => event.preventDefault()} onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget)) setProductDragging(false) }} onDrop={event => { event.preventDefault(); setProductDragging(false); addProductImages(event.dataTransfer.files) }} onPaste={event => addProductImages(event.clipboardData.files)} aria-busy={productImagesLoading || productImagesUploading} aria-label={usesCommodityAssets ? '商品素材附件' : '创作参考图片'}><input ref={productImageInput} hidden type="file" accept="image/*" multiple onChange={event => { addProductImages(event.target.files); event.target.value = '' }}/><div className="product-attachments-heading">{productImagesLoading || productImagesUploading ? <LoaderCircle className="product-loading-icon"/> : <Upload/>}<div><span>{usesCommodityAssets ? '商品素材附件' : '创作参考图片'}</span><small>{productImagesLoading ? `正在从${commodityLibraryName}加载图片…` : productImagesUploading ? `正在上传 ${pendingProductImageCount} 张图片…` : usesCommodityAssets ? `${productImages.length} 张图片 · 已引用${commodityLibraryName}素材，可继续添加、删除或拖拽粘贴` : productImages.length ? `${productImages.length} 张图片 · 将作为自由创作参考，可继续拖拽或粘贴` : '不引用商品库图片，支持点击、拖拽或粘贴图片'}</small></div><button type="button" disabled={productImagesLoading || productImagesUploading} onClick={() => productImageInput.current?.click()}>{productImagesLoading ? '加载中' : productImagesUploading ? '上传中' : '选择图片'}</button></div>{productImagesLoading ? <div className="product-attachment-skeletons" aria-hidden="true">{[1,2,3,4].map(item => <i key={item}/>)}</div> : (productImages.length > 0 || productImagesUploading) && <div className="product-attachment-strip" aria-label={usesCommodityAssets ? '商品素材附件列表' : '创作参考图片列表'}>{productImages.map((image, index) => <div className="product-attachment-item" key={`${image}-${index}`}><button type="button" className="product-attachment-preview" onClick={() => setSelectedAttachment(image)} aria-pressed={activeAttachment === image} aria-label={`查看图片附件 ${index + 1} 的质量评分`}><img src={image} alt="" referrerPolicy="no-referrer"/></button><button type="button" className="product-attachment-remove" onClick={() => { if (image.startsWith('blob:')) URL.revokeObjectURL(image); setProductImages(value => value.filter((_, itemIndex) => itemIndex !== index)) }} aria-label={`删除图片附件 ${index + 1}`}><X/></button></div>)}{productImagesUploading && Array.from({ length: pendingProductImageCount }).map((_, index) => <span className="product-upload-skeleton" role="status" aria-label={`图片 ${index + 1} 上传中`} key={`uploading-${index}`}><LoaderCircle/><small>上传中</small></span>)}</div>}<AttachmentQuality images={productImages} activeImage={activeAttachment} loading={productImagesLoading || productImagesUploading} onPreview={setPreviewProductImage}/></div>
 
+    <small className={`field-validation-error span-2 ${errors.productImages?'':'is-placeholder'}`} role={errors.productImages?'alert':undefined} aria-hidden={errors.productImages?undefined:'true'}>{errors.productImages?<><CircleAlert/>{errors.productImages}</>:<>&nbsp;</>}</small>
     <div className="brief-section-heading span-2"><span>02</span><div><h3>视频基础需求</h3><p>定义投放环境、成片规格与语言字幕</p></div></div>
-    <label className="span-2"><span>视频需求描述</span><textarea value={videoRequirement} onChange={event => setVideoRequirement(event.target.value)}/></label>
-    <BriefSelect label="目标平台" value={platform} onChange={setPlatform} options={briefOptions.platform}/>
-    <BriefSelect label="画面比例" value={ratio} onChange={setRatio} options={briefOptions.ratio}/>
-    <BriefSelect icon={Clock3} label="成片目标时长" value={selectedDuration} options={briefOptions.duration} onChange={setSelectedDuration}/>
-    <BriefSelect label="目标市场与语言" value={market} onChange={setMarket} options={briefOptions.market}/>
-    <div className="video-field-with-help"><BriefSelect icon={Mic2} label="口播语速（WPM）" value={speechRate} onChange={setSpeechRate} options={briefOptions.speechRate} optionDescriptions={speechRateDescriptions}/><small>WPM 表示每分钟口播的英文单词数；标准 150 WPM 适合大多数短视频。</small></div>
+    <ValidatedField error={errors.videoRequirement} className="span-2"><label><span>视频需求描述</span><textarea value={videoRequirement} onChange={event => setVideoRequirement(event.target.value)}/></label></ValidatedField>
+    <ValidatedField error={errors.platform}><BriefSelect label="目标平台" value={platform} onChange={setPlatform} options={briefOptions.platform}/></ValidatedField>
+    <ValidatedField error={errors.ratio}><BriefSelect label="画面比例" value={ratio} onChange={setRatio} options={briefOptions.ratio}/></ValidatedField>
+    <ValidatedField error={errors.duration}><BriefSelect icon={Clock3} label="成片目标时长" value={selectedDuration} options={briefOptions.duration} onChange={setSelectedDuration}/></ValidatedField>
+    <ValidatedField error={errors.market}><BriefSelect label="目标市场与语言" value={market} onChange={setMarket} options={briefOptions.market}/></ValidatedField>
+    <ValidatedField error={errors.speechRate}><div className="video-field-with-help"><BriefSelect icon={Mic2} label="口播语速（WPM）" value={speechRate} onChange={setSpeechRate} options={briefOptions.speechRate} optionDescriptions={speechRateDescriptions}/><small>WPM 表示每分钟口播的英文单词数；标准 150 WPM 适合大多数短视频。</small></div></ValidatedField>
     <div className="brief-section-heading span-2"><span>03</span><div><h3>业务输出参数</h3><p>营销目标、视频形式与视觉风格</p></div></div>
     <div className="asset-ai-actions asset-ai-generation-bridge span-2"><button type="button" className="asset-ai-generate" onClick={generateBusinessParameters} disabled={Boolean(aiGenerating)} aria-busy={aiGenerating === 'business'} title="根据基础商品与人群配置和视频基础需求生成业务输出参数">{aiGenerating === 'business' ? <LoaderCircle className="product-loading-icon" aria-hidden="true"/> : <Sparkles aria-hidden="true"/>}{aiGenerating === 'business' ? '生成中…' : 'AI 生成'}</button><span role="status">{aiGenerating === 'business' ? '正在生成业务输出参数…' : aiGenerated === 'business' ? '已生成业务输出参数，可继续手动调整' : '根据基础商品与人群配置和视频基础需求生成'}</span></div>
-    <BriefSelect label="营销目标" value={creativeDirection.goal} onChange={goal => setCreativeDirection(value => ({ ...value, goal }))} options={briefOptions.goal}/>
-    <BriefSelect label="视频形式" value={creativeDirection.format} onChange={format => setCreativeDirection(value => ({ ...value, format }))} options={briefOptions.format}/>
-    <BriefSelect label="视觉风格" value={creativeDirection.style} onChange={style => setCreativeDirection(value => ({ ...value, style }))} options={['原生自然', '明亮清新', '温暖治愈', '冷静科技', '高级纪实', '极简商业', '高饱和活力', '美式复古 90s', '现代 3D 动画']}/>
+    <ValidatedField error={errors.goal}><BriefSelect label="营销目标" value={creativeDirection.goal} onChange={goal => setCreativeDirection(value => ({ ...value, goal }))} options={briefOptions.goal}/></ValidatedField>
+    <ValidatedField error={errors.format}><BriefSelect label="视频形式" value={creativeDirection.format} onChange={format => setCreativeDirection(value => ({ ...value, format }))} options={briefOptions.format}/></ValidatedField>
+    <ValidatedField error={errors.style}><BriefSelect label="视觉风格" value={creativeDirection.style} onChange={style => setCreativeDirection(value => ({ ...value, style }))} options={['原生自然', '明亮清新', '温暖治愈', '冷静科技', '高级纪实', '极简商业', '高饱和活力', '美式复古 90s', '现代 3D 动画']}/></ValidatedField>
 {previewProductImage && <div className="product-image-modal" role="dialog" aria-modal="true" aria-label="图片附件预览" onClick={() => setPreviewProductImage(null)}><div className="product-image-modal-content" onClick={event => event.stopPropagation()}><header><div><strong>图片附件预览</strong><span>{previewProductImage.index + 1} / {productImages.length}</span></div><button type="button" onClick={() => setPreviewProductImage(null)} aria-label="关闭图片预览"><X/></button></header><div><img src={previewProductImage.image} alt={`图片附件 ${previewProductImage.index + 1} 大图预览`} referrerPolicy="no-referrer"/></div></div></div>}
   </div>
 }
@@ -413,7 +436,7 @@ function ScriptElementTag({ title, description, thumbnail }) {
   </div>
 }
 
-function ScriptPanel({ onNotice, onChange, onEditBrief, brief, demo }) {
+function ScriptPanel({ onNotice, onChange, onEditBrief, onValidityChange, brief, demo }) {
   const sourceSections = demo ? cortisolScript : initialScriptSections
   const [sections, setSections] = useState(sourceSections)
   const [editing, setEditing] = useState('')
@@ -450,6 +473,7 @@ function ScriptPanel({ onNotice, onChange, onEditBrief, brief, demo }) {
   const targetSeconds = Number.parseInt(brief.duration, 10) || 0
   const demonstrationSeconds = Math.max(0, targetSeconds - estimatedOralSeconds)
   const durationValid = targetSeconds >= estimatedOralSeconds
+  useEffect(()=>onValidityChange?.(Object.values(sections).every(value=>value.trim())),[sections,onValidityChange])
   useEffect(() => {
     if (!previewProductImage) return
     const closeOnEscape = event => event.key === 'Escape' && setPreviewProductImage(null)
@@ -489,7 +513,7 @@ function CoreAssetEditor({ asset, onSave, onClose }) {
   const update=(key,value)=>setDraft(current=>({...current,[key]:value}))
   const uploadThumbnail=event=>{const file=event.target.files?.[0];event.target.value='';if(!file)return;if(!file.type.startsWith('image/')){setError('请选择图片文件');return}if(file.size>50*1024*1024){setError('缩略图不能超过 50 MB');return}setError('');update('thumbnail',URL.createObjectURL(file))}
   const generate=()=>{if(!draft.skill){setError('请先绑定一个生成技能');return}if(!draft.description.trim()){setError('请先填写资产描述或生成提示词');return}setError('');setGenerating(true);window.setTimeout(()=>{const skillIndex=Math.max(0,coreAssetSkills.indexOf(draft.skill));setDraft(current=>({...current,thumbnail:mockPreviewImages[(asset.id+skillIndex)%mockPreviewImages.length],state:'bound'}));setGenerating(false)},900)}
-  const save=event=>{event.preventDefault();if(!draft.title.trim()){setError('请输入资产标题');return}onSave({...draft,title:draft.title.trim(),description:draft.description.trim(),state:draft.thumbnail||draft.type==='声音'?'bound':'missing'})}
+  const save=event=>{event.preventDefault();if(!draft.type?.trim()){setError('请选择资产分类');return}if(!draft.title.trim()){setError('请输入资产标题');return}if(!draft.description.trim()){setError('请输入资产描述');return}onSave({...draft,type:draft.type.trim(),title:draft.title.trim(),description:draft.description.trim(),state:'bound'})}
   return <article className="core-asset-inline-editor">
     <form onSubmit={save}>
       <div className="inline-asset-media">{draft.thumbnail?<img src={draft.thumbnail} alt="资产缩略图预览"/>:<div><Image/><span>暂无缩略图</span></div>}<input ref={fileInput} hidden type="file" accept="image/*" onChange={uploadThumbnail}/><button type="button" onClick={()=>fileInput.current?.click()}><Upload/>更换缩略图</button></div>
@@ -534,13 +558,13 @@ function CoreAssetPreview({ asset }) {
   </div>
 }
 
-function CoreAssetRow({ asset, onUpdate, onDelete, onNotice }) {
+function CoreAssetRow({ asset, validationError, onUpdate, onDelete, onNotice }) {
   const fileInput=useRef(null)
   const [generating,setGenerating]=useState(false)
   const Icon=assetTypeOptions.find(([name])=>name===asset.type)?.[1]||Image
   const upload=event=>{const file=event.target.files?.[0];event.target.value='';if(!file)return;if(!file.type.startsWith('image/')&&!file.type.startsWith('video/')){onNotice?.('请选择图片或视频文件');return}if(file.size>50*1024*1024){onNotice?.('上传文件不能超过 50 MB');return}onUpdate({...asset,thumbnail:URL.createObjectURL(file),mediaType:file.type.startsWith('video/')?'video':'image',state:'bound'});onNotice?.('资产已上传')}
   const generate=()=>{if(!asset.skill){onNotice?.('请先绑定一个生成技能');return}if(!asset.description.trim()){onNotice?.('请先填写资产描述或生成提示词');return}setGenerating(true);window.setTimeout(()=>{const skillIndex=Math.max(0,coreAssetSkills.indexOf(asset.skill));onUpdate({...asset,thumbnail:mockPreviewImages[(asset.id+skillIndex)%mockPreviewImages.length],mediaType:'image',state:'bound'});setGenerating(false);onNotice?.('资产已生成')},900)}
-  return <article className="core-asset-row reference-list-card"><CoreAssetPreview asset={asset}/><div className="core-asset-copy"><div className="inline-asset-type"><AssetTypeSelect value={asset.type} onChange={type=>onUpdate({...asset,type})}/></div><strong><FileText aria-hidden="true"/><InlineAssetText value={asset.title} label="资产标题" onCommit={title=>onUpdate({...asset,title})}/></strong><p><Link2 aria-hidden="true"/><InlineAssetText multiline value={asset.description} label="资产描述" onCommit={description=>onUpdate({...asset,description})}/></p></div><div className="reference-row-status"><CoreSkillSelect value={asset.skill} onChange={skill=>onUpdate({...asset,skill})}/><input ref={fileInput} hidden type="file" accept="image/*,video/*" onChange={upload}/><button type="button" className="asset-row-tool" onClick={()=>fileInput.current?.click()}><Upload/>上传</button><button type="button" className="asset-row-tool is-generate" onClick={generate} disabled={generating}>{generating?<LoaderCircle className="product-loading-icon"/>:<Sparkles/>}{generating?'生成中':'生成'}</button></div><div className="reference-row-actions"><button type="button" onClick={()=>onDelete(asset)} aria-label={`删除${asset.title}`}><Trash2/></button></div></article>
+  return <div className="core-asset-item"><article className={`core-asset-row reference-list-card ${validationError?'has-validation-error':''}`}><CoreAssetPreview asset={asset}/><div className="core-asset-copy"><div className="inline-asset-type"><AssetTypeSelect value={asset.type} onChange={type=>onUpdate({...asset,type})}/></div><strong><FileText aria-hidden="true"/><InlineAssetText value={asset.title} label="资产标题" onCommit={title=>onUpdate({...asset,title})}/></strong><p><Link2 aria-hidden="true"/><InlineAssetText multiline value={asset.description} label="资产描述" onCommit={description=>onUpdate({...asset,description})}/></p></div><div className="reference-row-status"><CoreSkillSelect value={asset.skill} onChange={skill=>onUpdate({...asset,skill})}/><input ref={fileInput} hidden type="file" accept="image/*,video/*" onChange={upload}/><button type="button" className="asset-row-tool" onClick={()=>fileInput.current?.click()}><Upload/>上传</button><button type="button" className="asset-row-tool is-generate" onClick={generate} disabled={generating}>{generating?<LoaderCircle className="product-loading-icon"/>:<Sparkles/>}{generating?'生成中':'生成'}</button></div><div className="reference-row-actions"><button type="button" onClick={()=>onDelete(asset)} aria-label={`删除${asset.title}`}><Trash2/></button></div></article>{validationError&&<small className="core-asset-validation" role="alert"><CircleAlert/>{validationError}</small>}</div>
 }
 
 
@@ -597,7 +621,9 @@ function AssetProductionSettings({ brief, settings, setSettings }) {
   </section>
 }
 
-function AssetsPanel({ onNotice, demo, onResourcesChange, brief }) {
+function AssetsPanel({ onNotice, demo, onResourcesChange, onValidityChange, brief }) {
+  const [showValidation,setShowValidation]=useState(false)
+  useEffect(()=>{const show=()=>setShowValidation(true);window.addEventListener('assets-validation',show);return()=>window.removeEventListener('assets-validation',show)},[])
   const sourceBrief = demo && brief.product !== cortisolDemo.product ? cortisolDemo : brief
   const groups = demo ? [['人物',UserRound,['美国成年女性 UGC 讲述者']],['场景',Image,['美国居家明亮桌面']],['产品',Package,['MYO-INOSITOL 红瓶','CORTISOL-HEALTH 蓝瓶']],['道具',Box,[]]] : scriptElements
   const images = sourceBrief.productImages || (demo ? cortisolProduct.images : productCatalog.find(product=>product.name===sourceBrief.product)?.images) || []
@@ -622,11 +648,12 @@ function AssetsPanel({ onNotice, demo, onResourcesChange, brief }) {
   }, [items, demo, onResourcesChange])
   const [editing,setEditing]=useState(null)
   const [deleting,setDeleting]=useState(null)
-  const ready=items.filter(item=>item.state==='bound').length
+  const ready=items.filter(item=>item.type?.trim()&&item.title?.trim()&&item.description?.trim()).length
+  useEffect(()=>onValidityChange?.(items.length>0&&ready===items.length),[items.length,ready,onValidityChange])
   const save=item=>{setItems(current=>current.some(entry=>entry.id===item.id)?current.map(entry=>entry.id===item.id?item:entry):[...current,item]);setEditing(null);onNotice?.('核心资产已保存')}
   const add=()=>{setItems(current=>[{id:Date.now(),type:'产品',title:'',description:'',thumbnail:'',skill:'',icon:Package,state:'missing'},...current]);onNotice?.('已添加一条空资产')}
   return <div className="asset-config-list"><div className="asset-callout"><Library/><div><strong>分镜前锁定核心资产</strong><span>{ready===items.length?'核心资产已经就绪，可以继续生成分镜。':`系统从剧本中识别出 ${items.length} 项核心资产，仍有 ${items.length-ready} 项需要处理。`}</span></div><b>{ready} / {items.length}</b></div><div className="core-asset-toolbar"><div><strong>核心资产</strong><span>可添加、修改或删除，图片资产支持绑定技能生成。</span></div><button type="button" onClick={add}><Plus/>添加资产</button></div>
-    {items.map(asset=>editing?.id===asset.id?<CoreAssetEditor key={asset.id} asset={editing} onSave={save} onClose={()=>setEditing(null)}/>:<CoreAssetRow key={asset.id} asset={asset} onUpdate={updated=>setItems(current=>current.map(item=>item.id===updated.id?updated:item))} onDelete={setDeleting} onNotice={onNotice}/>)}
+    {items.map(asset=>{const missing=[!asset.type?.trim()&&'分类',!asset.title?.trim()&&'标题',!asset.description?.trim()&&'描述'].filter(Boolean);const validationError=showValidation&&missing.length?`请填写${missing.join('、')}`:'';return editing?.id===asset.id?<CoreAssetEditor key={asset.id} asset={editing} onSave={save} onClose={()=>setEditing(null)}/>:<CoreAssetRow key={asset.id} asset={asset} validationError={validationError} onUpdate={updated=>setItems(current=>current.map(item=>item.id===updated.id?updated:item))} onDelete={setDeleting} onNotice={onNotice}/>})}
     {!items.length&&<div className="core-asset-empty"><Library/><strong>还没有核心资产</strong><span>添加产品、人物或场景资产，为分镜保持视觉一致性。</span><button type="button" onClick={add}><Plus/>添加资产</button></div>}
     {editing&&!items.some(item=>item.id===editing.id)&&<CoreAssetEditor asset={editing} onSave={save} onClose={()=>setEditing(null)}/>} {deleting&&<div className="core-delete-backdrop"><section role="alertdialog" aria-modal="true" aria-labelledby="core-delete-title"><Trash2/><h3 id="core-delete-title">删除“{deleting.title}”？</h3><p>该资产会从当前视频项目的核心资产中移除。</p><div><button type="button" onClick={()=>setDeleting(null)}>取消</button><button type="button" className="danger" onClick={()=>{setItems(current=>current.filter(item=>item.id!==deleting.id));setDeleting(null);onNotice?.('核心资产已删除')}}>确认删除</button></div></section></div>}
   </div>
@@ -663,13 +690,17 @@ export default function VideoWorkspace({ homeRequest = 0 }) {
   const [generated, setGenerated] = useState([0, 1])
   const [productionSettings,setProductionSettings]=useState({subtitleStyle:'outlined-white',subtitleFont:'自动匹配',shootingPreferences:['核心功能演示','便携收纳展示','边用边讲','自然抓拍','产品微距','半身近景','桌面顶拍','固定机位','主体锁焦','前后对比剪辑']})
   const [notice, setNotice] = useState('')
+  const [validationMessage,setValidationMessage]=useState('')
   const [scriptConfirmed, setScriptConfirmed] = useState(false)
+  const [scriptValid,setScriptValid]=useState(false)
+  const [assetsValid,setAssetsValid]=useState(false)
+  const [storyValid,setStoryValid]=useState(false)
   const [briefParameters, setBriefParameters] = useState({ productSource: '个人商品', product: 'AeroPress Go 便携咖啡器', marketingGroup: '美国城市混合办公人群', marketingSummary: '需要在家、办公室与通勤场景间切换的咖啡饮用者', audience: '营销假设：25–34 岁、居住在美国城市、每周往返办公室且重视咖啡品质与便携性的上班族', painPoint: '办公室咖啡体验不稳定，传统冲煮设备不便携带、收纳和清洁', result: '用一套可收纳进随行杯的器具，在约 2 分钟内完成冲煮与清洁', originalSellingPoint: '8 oz 单杯容量、整套收纳进随行杯、约 2 分钟完成冲煮与清洁', buyerContent: '从工作包中取出整套器具，在办公桌完成冲煮，清洁后重新收进随行杯', materialDirection: '办公室咖啡与新鲜冲煮前后对比、桌面顶拍操作、微滤细节、清洁与收纳连续动作', videoRequirement: '制作一条 45 秒 TikTok 竖屏英文短视频，面向需要在通勤、家庭与办公室之间切换的美国城市上班族。前三秒用普通办公室咖啡与新鲜冲煮形成反差；随后展示整套器具从随行杯中取出、加入咖啡粉与热水、搅拌按压、清洁并重新收纳。只使用可验证卖点：8 oz 单杯容量、整套可收纳进随行杯、微滤减少咖啡渣、冲煮与清洁约 2 分钟。', platform: 'TikTok', duration: '45 秒', ratio: '9:16 竖屏', market: '美国 · English (US)', goal: '解释核心卖点', format: '产品功能演示', style: '原生自然', subtitle: '黑描边白字字幕', shootingPreferences: ['核心功能演示', '便携收纳展示', '边用边讲', '自然抓拍', '产品微距', '半身近景', '桌面顶拍', '固定机位', '主体锁焦', '前后对比剪辑'] })
   const isBlankTask=selectedTask?.startsWith('task-new-')
   const [boundDemoResources,setBoundDemoResources]=useState(cortisolWorkflow.resources)
   const currentSeed=selectedTask==='task-cortisol-demo'?cortisolDemo:undefined
   const currentTaskMode=selectedTask?taskModes[selectedTask]||'':''
-  const panels = useMemo(() => [<BriefPanel seed={currentSeed} blank={isBlankTask} initialMode={currentTaskMode} onChange={setBriefParameters}/>, <ScriptPanel demo={Boolean(currentSeed)} brief={briefParameters} onNotice={setNotice} onChange={() => setScriptConfirmed(false)} onEditBrief={() => setActive(0)}/>, <AssetsPanel brief={briefParameters} onResourcesChange={setBoundDemoResources} demo={Boolean(currentSeed)} onNotice={setNotice}/>, <div className="short-preferences-page"><AssetProductionSettings brief={briefParameters} settings={productionSettings} setSettings={setProductionSettings}/></div>, <StoryPanel demo={currentSeed ? {shots:cortisolShots,resources:boundDemoResources} : undefined} settings={productionSettings} onNotice={setNotice}/>, <GeneratePanel generated={generated} onGenerate={id => { setGenerated(value => [...value, id]); setNotice(`片段 ${id + 1} 已生成`) }}/>], [model, generated, briefParameters, productionSettings, isBlankTask, currentTaskMode, currentSeed, boundDemoResources])
+  const panels = useMemo(() => [<BriefPanel seed={currentSeed} blank={isBlankTask} initialMode={currentTaskMode} onChange={setBriefParameters}/>, <ScriptPanel demo={Boolean(currentSeed)} brief={briefParameters} onNotice={setNotice} onChange={() => setScriptConfirmed(false)} onValidityChange={setScriptValid} onEditBrief={() => setActive(0)}/>, <AssetsPanel brief={briefParameters} onResourcesChange={setBoundDemoResources} onValidityChange={setAssetsValid} demo={Boolean(currentSeed)} onNotice={setNotice}/>, <div className="short-preferences-page"><AssetProductionSettings brief={briefParameters} settings={productionSettings} setSettings={setProductionSettings}/></div>, <StoryPanel demo={currentSeed ? {shots:cortisolShots,resources:boundDemoResources} : undefined} settings={productionSettings} onValidityChange={setStoryValid} onNotice={setNotice}/>, <GeneratePanel generated={generated} onGenerate={id => { setGenerated(value => [...value, id]); setNotice(`片段 ${id + 1} 已生成`) }}/>], [model, generated, briefParameters, productionSettings, isBlankTask, currentTaskMode, currentSeed, boundDemoResources])
   useEffect(()=>{if(!notice)return;const timer=window.setTimeout(()=>setNotice(''),2400);return()=>window.clearTimeout(timer)},[notice])
   const [, , label] = steps[active]
   const openTaskCreator=()=>{setSelectedTask(null);setActive(0);setNotice('')}
@@ -686,12 +717,59 @@ export default function VideoWorkspace({ homeRequest = 0 }) {
     setProductionSettings({subtitleStyle:'outlined-white',subtitleFont:'自动匹配',shootingPreferences:[]})
     setNotice('新任务已创建，请填写创作需求')
   }
-  return <main className="video-workspace horizontal-workflow"><CreationTaskHistory tasks={tasks} selected={selectedTask} onSelect={id => { setSelectedTask(id); if(id==='task-cortisol-demo') { setActive(0); setProductionSettings(cortisolWorkflow.preferences) } }} onNew={openTaskCreator}/><section className="video-work-area">
+  const executeNextStep=()=>{
+    setValidationMessage('')
+    const validateBrief=()=>{
+      const errors={}
+      const add=(invalid,key,label)=>{if(invalid)errors[key]=label}
+      const empty=value=>!value||String(value).startsWith('请选择')
+      const isFree=briefParameters.productSource==='自由创作'
+      add(empty(briefParameters.productSource),'productSource','请选择创作起点')
+      if(isFree){
+        const missingCreativeInput=!briefParameters.productImages?.length&&!briefParameters.videoRequirement?.trim()
+        add(missingCreativeInput,'productImages','请添加参考图片或填写视频需求描述，至少完成一项')
+        add(missingCreativeInput,'videoRequirement','请填写视频需求描述或添加参考图片，至少完成一项')
+      }else{
+        add(empty(briefParameters.product),'product','请选择商品')
+        add(empty(briefParameters.marketingGroup),'marketingGroup','请选择分人群营销')
+      }
+      add(empty(briefParameters.platform),'platform','请选择目标平台')
+      add(empty(briefParameters.ratio),'ratio','请选择画面比例')
+      add(empty(briefParameters.duration),'duration','请选择目标成片时长')
+      add(empty(briefParameters.market),'market','请选择目标市场与语言')
+      add(empty(briefParameters.speechRate),'speechRate','请选择口播语速')
+      add(empty(briefParameters.goal),'goal','请选择营销目标')
+      add(empty(briefParameters.format),'format','请选择视频形式')
+      add(empty(briefParameters.style),'style','请选择视觉风格')
+      return errors
+    }
+    const briefErrors=validateBrief()
+    const hasBriefErrors=Object.keys(briefErrors).length>0
+    if(hasBriefErrors)window.dispatchEvent(new CustomEvent('brief-validation',{detail:briefErrors}))
+    if(active>0&&hasBriefErrors){setActive(0);return false}
+    if(active===2&&!assetsValid){window.dispatchEvent(new CustomEvent('assets-validation'));return false}
+    const validationMessages=[
+      '',
+      scriptValid?'':'请补全剧本各段内容',
+      '',
+      productionSettings.shootingPreferences?.length?'':'请至少选择一项拍摄偏好',
+      storyValid?'':'请先补全故事面板中的镜头标题和镜头内容',
+      generated.length===4?'':'请先生成全部视频片段'
+    ]
+    if(active===0&&hasBriefErrors)return false
+    if(validationMessages[active]){setValidationMessage(validationMessages[active]);return false}
+    if(active===steps.length-1){setNotice('视频生成流程已完成');return true}
+    if(active===1){setScriptConfirmed(true);setNotice('剧本已确认，可用于准备核心资产')}
+    setActive(value=>Math.min(steps.length-1,value+1))
+    return true
+  }
+  const changeStep=next=>{setValidationMessage('');if(next<=active){setActive(next);return}if(next===active+1)executeNextStep();else setValidationMessage('请先完成当前步骤的必填项，再进入后续步骤')}
+  return <main className="video-workspace horizontal-workflow"><CreationTaskHistory tasks={tasks} selected={selectedTask} onSelect={id => { setSelectedTask(id); setActive(0); setNotice(''); if(id==='task-cortisol-demo') setProductionSettings(cortisolWorkflow.preferences) }} onNew={openTaskCreator}/><section className="video-work-area">
     {selectedTask===null?<><header className="video-work-header creation-start-header"><div><span>SHULAN / CREATIVE STUDIO</span><h1>创意中心</h1></div></header><div className="creation-start-stage"><CreativeHome onChoose={createTask}/></div></>:
     <>
-    <header className="video-work-header"><div><span>快捷生成视频 / 新建项目</span><h1>{label}</h1></div><Workflow active={active} onChange={setActive}/><div><button className="quiet-button">保存草稿</button><button className="primary-button" onClick={() => { if (active === steps.length - 1) { setNotice('视频生成流程已完成'); return }; if (active === 1) { setScriptConfirmed(true); setNotice('剧本已确认，可用于准备核心资产') }; setActive(value => Math.min(steps.length - 1, value + 1)) }}>{active === steps.length - 1 ? '完成' : active === 1 && !scriptConfirmed ? '确认剧本并继续' : '继续'}{active === steps.length - 1 ? <Check/> : <ArrowRight/>}</button></div></header>
+      <header className="video-work-header"><div><span>快捷生成视频 / 新建项目</span><h1>{label}</h1></div><Workflow active={active} onChange={changeStep}/><div><button className="quiet-button">保存草稿</button><button className="primary-button" onClick={executeNextStep}>{active === steps.length - 1 ? '完成' : active === 1 && !scriptConfirmed ? '确认剧本并继续' : '继续'}{active === steps.length - 1 ? <Check/> : <ArrowRight/>}</button></div></header>
     <div className="video-stage">
-      <div className="stage-content" key={selectedTask}>{panels.map((panel,index)=><div key={index} hidden={active!==index}>{panel}</div>)}</div>
+        <div className="stage-content" key={selectedTask}>{panels.map((panel,index)=><div key={index} hidden={active!==index}>{panel}{active===index&&<>{validationMessage&&<div className="workflow-inline-validation" role="alert"><CircleAlert/><span>{validationMessage}</span></div>}<footer className={`workflow-next-footer ${index>0?'has-back-action':''}`}>{index>0&&<button type="button" className="back-button workflow-back-button" onClick={()=>{setValidationMessage('');setActive(index-1)}}><ArrowLeft/>返回修改（{steps[index-1][2]}）</button>}<button type="button" className="primary-button workflow-next-button" onClick={executeNextStep}>{index===steps.length-1?'完成视频生成':`执行下一步（${steps[index+1][2]}）`}{index===steps.length-1?<Check/>:<ArrowRight/>}</button></footer></>}</div>)}</div>
     </div></>}
   </section>{notice && <div className="asset-toast video-toast"><Check/>{notice}</div>}</main>
 }

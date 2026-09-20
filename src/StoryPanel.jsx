@@ -124,9 +124,10 @@ function ConstraintsEditor({ text, onSave }) {
   return <section className="story-generation-constraints"><header className="story-constraints-heading"><h3>生成约束</h3></header><InlineEdit label="生成约束" value={text} onSave={onSave}>{text.split('\n').map((paragraph,index)=><p key={index}>{paragraph}</p>)}</InlineEdit></section>
 }
 
-export default function StoryPanel({ settings, onNotice, demo }) {
+export default function StoryPanel({ settings, onNotice, onValidityChange, demo }) {
   const [segment,setSegment]=useState(0)
   const [shots,setShots]=useState(demo?.shots || storyShots)
+  useEffect(()=>onValidityChange?.(shots.length>0&&shots.every(shot=>shot.title?.trim()&&shot.text?.trim())),[shots,onValidityChange])
   const [resources,setResources]=useState({})
   const [constraints,setConstraints]=useState({})
   const activeResources={...demo?.resources,...resources[segment]}
