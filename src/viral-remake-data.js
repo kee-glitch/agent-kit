@@ -9,13 +9,13 @@ export const steps = ['接收需求', '拆解视频', '替换元素', '提取片
 export const demoRequest = '根据视频拆解脚本进行元素替换：人物和服饰替换成人物形象，手持产品替换成 Gold Shilajit Gummies，手持胶囊替换成红色方糖软糖，其他镜头、动作、运镜、时长和口播节奏保持不变。'
 
 export const demoAssets = [
-  { id: 'person', name: '人物形象.jpg', role: '人物与服饰', path: '/agent-kit/viral-remake-demo/person.jpg' },
-  { id: 'product', name: '产品外观.jpg', role: '手持产品', path: '/agent-kit/viral-remake-demo/product.jpg' },
-  { id: 'gummy', name: '产品方糖心态.png', role: '手持胶囊', path: '/agent-kit/viral-remake-demo/gummy.png' },
+  { id: 'person', name: '人物形象.jpg', role: '人物与服饰', path: './viral-remake-demo/person.jpg' },
+  { id: 'product', name: '产品外观.jpg', role: '手持产品', path: './viral-remake-demo/product.jpg' },
+  { id: 'gummy', name: '产品方糖心态.png', role: '手持胶囊', path: './viral-remake-demo/gummy.png' },
 ]
 
-export const originalBoards = [1, 2, 3].map(index => `/agent-kit/viral-remake-demo/original-${index}.jpg`)
-export const replacedBoards = [1, 2, 3].map(index => `/agent-kit/viral-remake-demo/replaced-${index}.png`)
+export const originalBoards = [1, 2, 3].map(index => `./viral-remake-demo/original-${index}.jpg`)
+export const replacedBoards = [1, 2, 3].map(index => `./viral-remake-demo/replaced-${index}.png`)
 
 export const breakdownText = `# 视频拆解与复刻框架
 
@@ -55,4 +55,3 @@ export const segmentDocuments = [
   { id: 'segment-2', title: '片段 02', time: '00:15–00:30', duration: '15s', shots: '镜头 4–6', content: '人物举起 Gold Shilajit Gummies 黑色产品罐，标签朝向镜头。保持产品移动轨迹、人物口播、血流示意图出现时间与原片一致。' },
   { id: 'segment-3', title: '片段 03', time: '00:30–00:41', duration: '11s', shots: '镜头 7–9', content: '继续使用参考人物与黑色产品罐，复刻原片抬起、降低和再次展示的动作。末尾用红色方糖软糖替代胶囊并保持最后停顿。' },
 ]
-

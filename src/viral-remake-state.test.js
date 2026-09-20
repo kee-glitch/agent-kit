@@ -4,10 +4,12 @@ import {
   advanceStep,
   canAdvance,
   createInitialProject,
+  persistProject,
   setCurrentStep,
   setGenerationStatus,
   updateDocument,
 } from './viral-remake-state.js'
+import { demoAssets, originalBoards, replacedBoards } from './viral-remake-data.js'
 
 test('空白需求不能进入拆解步骤', () => {
   const project = createInitialProject()
@@ -37,4 +39,17 @@ test('片段生成状态独立更新', () => {
   const next = setGenerationStatus(project, 'segment-2', 'running')
   assert.equal(next.generation['segment-2'], 'running')
   assert.equal(next.generation['segment-1'], undefined)
+})
+
+test('Demo 素材使用兼容开发和构建部署的相对地址', () => {
+  const paths = [...demoAssets.map(item => item.path), ...originalBoards, ...replacedBoards]
+  assert.equal(paths.every(path => path.startsWith('./viral-remake-demo/')), true)
+})
+
+test('保存项目会写入指定存储并可恢复', () => {
+  const values = new Map()
+  const storage = { setItem: (key, value) => values.set(key, value) }
+  const project = createInitialProject({ videoName: 'demo.mp4', request: '替换产品' })
+  persistProject(storage, project)
+  assert.equal(createInitialProject(values.get('shulan.viral-remake.project.v1')).videoName, 'demo.mp4')
 })

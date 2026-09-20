@@ -55,3 +55,7 @@ export function setGenerationStatus(project, segmentId, status) {
 export function serializeProject(project) {
   return JSON.stringify(project)
 }
+
+export function persistProject(storage, project) {
+  storage.setItem(STORAGE_KEY, serializeProject(project))
+}
