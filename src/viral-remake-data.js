@@ -6,12 +6,12 @@ export const modes = [
 
 export const steps = ['接收需求', '拆解视频', '替换元素', '提取片段', '生成视频']
 
-export const demoRequest = '根据视频拆解脚本进行元素替换：人物和服饰替换成人物形象，手持产品替换成 Gold Shilajit Gummies，手持胶囊替换成红色方糖软糖，其他镜头、动作、运镜、时长和口播节奏保持不变。'
+export const demoRequest = '根据视频拆解脚本进行元素替换：人物和服饰参考 @图片1，手持产品参考 @图片2，手持胶囊替换成 @图片3，其他镜头、动作、运镜、时长和口播节奏保持不变。'
 
 export const demoAssets = [
-  { id: 'person', name: '人物形象.jpg', role: '人物与服饰', path: './viral-remake-demo/person.jpg' },
-  { id: 'product', name: '产品外观.jpg', role: '手持产品', path: './viral-remake-demo/product.jpg' },
-  { id: 'gummy', name: '产品方糖心态.png', role: '胶囊 / 方糖', path: './viral-remake-demo/gummy.png' },
+  { id: 'person', name: '人物形象.jpg', role: '图片1', type: 'image', path: './viral-remake-demo/person.jpg' },
+  { id: 'product', name: '产品外观.jpg', role: '图片2', type: 'image', path: './viral-remake-demo/product.jpg' },
+  { id: 'gummy', name: '产品方糖心态.png', role: '图片3', type: 'image', path: './viral-remake-demo/gummy.png' },
 ]
 
 export const originalBoards = [1, 2, 3].map(index => `./viral-remake-demo/original-${index}.jpg`)
