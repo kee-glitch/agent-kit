@@ -1,3 +1,6 @@
+> [!WARNING]
+> 此文档记录早期五步 Demo 方案，已不代表当前页面。当前四阶段设计以 [`2026-09-25-viral-remake-current-state-design.md`](./2026-09-25-viral-remake-current-state-design.md) 为准。
+
 # 爆款复刻前端 Demo 设计规格
 
 ## 目标

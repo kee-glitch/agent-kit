@@ -1,3 +1,6 @@
+> [!WARNING]
+> 此计划对应早期五步 Demo，已不作为当前执行依据。当前现状对齐计划以 [`2026-09-25-viral-remake-current-state-alignment.md`](./2026-09-25-viral-remake-current-state-alignment.md) 为准。
+
 # 爆款复刻前端 Demo Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
