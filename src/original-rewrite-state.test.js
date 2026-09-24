@@ -198,8 +198,18 @@ test("弹层限制焦点且窄屏标题取消固定高度", () => {
 
 test("原片仿写按钮沿用元素替换的统一规格", () => {
   const styles = readFileSync(new URL("./original-rewrite.css", import.meta.url), "utf8");
-  assert.match(styles, /\.original-rewrite button:not\(\.rewrite-segment-select\):not\(\.rewrite-output-media\):not\(\.rewrite-storyboard-card button\)\{[^}]*height:36px/);
+  assert.match(styles, /\.original-rewrite :where\(button:not\(\.rewrite-segment-select\):not\(\.rewrite-output-media\):not\(\.rewrite-storyboard-card button\)\)\{[^}]*height:36px/);
   assert.match(styles, /\.original-rewrite button\.primary\{[^}]*background:var\(--color-bg-inverse\)/);
   assert.match(styles, /\.original-rewrite button:disabled\{[^}]*background:var\(--color-bg-subtle\)[^}]*color:var\(--color-text-disabled\)/);
   assert.match(styles, /\.original-rewrite button:focus-visible/);
+});
+
+test("原片仿写六步导航沿用元素替换的白底连线样式", () => {
+  const source = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
+  const styles = readFileSync(new URL("./original-rewrite.css", import.meta.url), "utf8");
+  assert.match(source, /index < rewriteSteps\.length - 1 && <i aria-hidden="true"/);
+  assert.match(styles, /\.rewrite-steps\{[^}]*background:var\(--color-bg-surface\)/);
+  assert.match(styles, /\.rewrite-steps button>i\{[^}]*left:50%[^}]*right:-50%[^}]*height:1px/);
+  assert.match(styles, /\.rewrite-steps button\.complete>i\{background:var\(--color-success\)/);
+  assert.match(styles, /\.rewrite-steps button\.complete>span\{[^}]*background:var\(--color-success-subtle\)/);
 });
