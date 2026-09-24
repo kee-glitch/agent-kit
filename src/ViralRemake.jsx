@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { AssetMarkdown, MentionEditor } from "./AssetMentions";
 import {
   ArrowLeft,
   ArrowRight,
@@ -57,27 +58,20 @@ import {
   clearRunningStatuses,
   clearVideo,
   createInitialProject,
-  findMentionCandidates,
   findBoundReplacementAsset,
-  getMentionMenuPosition,
   getTrappedFocusTarget,
-  isMentionClickOutside,
   isBackdropSelfClick,
   isLatestRequest,
   getMediaType,
   getSelectedSegmentIds,
   toggleAllSegmentSelections,
-  keepWithinTextLimit,
-  moveMentionSelection,
   nextAssetLabel,
   persistProject,
-  parseAssetReferenceHref,
   queueGeneration,
   removeReplacementAsset,
   replaceSequencedAsset,
   setCurrentStep,
   setGenerationStatus,
-  splitAssetMentions,
   replaceVideo,
   updateDocument,
   updateReplacementAsset,
@@ -336,257 +330,6 @@ function BoundReplacementRow({ resource, asset, onChoose, onClear }) {
   );
 }
 
-function MentionEditor({ value, assets, onChange }) {
-  const wrapRef = useRef(null);
-  const editorRef = useRef(null);
-  const rangeRef = useRef(null);
-  const [query, setQuery] = useState(null);
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [menuPosition, setMenuPosition] = useState({ left: 16, top: 16 });
-  const candidates = query === null ? [] : findMentionCandidates(assets, query);
-  const updateMentionToken = (token, asset, reference) => {
-    token.className = `remake-mention-token${asset ? "" : " missing"}`;
-    token.contentEditable = "false";
-    token.dataset.reference = reference;
-    let thumb = token.querySelector(":scope > .remake-token-thumb");
-    if (!thumb) {
-      thumb = document.createElement("span");
-      token.prepend(thumb);
-    }
-    thumb.className = "remake-token-thumb";
-    thumb.dataset.mediaType = asset?.type || "missing";
-    thumb.setAttribute("aria-hidden", "true");
-    thumb.replaceChildren();
-    if (asset?.type === "image" && (asset.preview || asset.path)) {
-      const image = document.createElement("img");
-      image.src = asset.preview || asset.path;
-      image.alt = "";
-      thumb.append(image);
-    }
-    const label = Array.from(token.childNodes).find(
-      (node) => node.nodeType === Node.TEXT_NODE,
-    );
-    if (label) label.nodeValue = reference;
-    else token.append(document.createTextNode(reference));
-  };
-  const createMentionToken = (asset, reference) => {
-    const token = document.createElement("span");
-    updateMentionToken(token, asset, reference);
-    return token;
-  };
-  const renderValue = (force = false, nextValue = value) => {
-    const editor = editorRef.current;
-    if (!editor || (!force && document.activeElement === editor)) return;
-    editor.replaceChildren();
-    nextValue
-      .split(/(@(?:图片|音频|视频)\d+)/g)
-      .filter(Boolean)
-      .forEach((part) => {
-        if (!/^@(图片|音频|视频)\d+$/.test(part))
-          return editor.append(document.createTextNode(part));
-        const asset = assets.find((item) => `@${item.role}` === part);
-        editor.append(createMentionToken(asset, part));
-      });
-  };
-  useEffect(renderValue, [value]);
-  useEffect(() => {
-    const editor = editorRef.current;
-    if (!editor) return;
-    editor.querySelectorAll(".remake-mention-token").forEach((token) => {
-      const reference = token.dataset.reference;
-      const asset = assets.find((item) => `@${item.role}` === reference);
-      updateMentionToken(token, asset, reference);
-    });
-  }, [assets]);
-  useEffect(() => setActiveIndex(0), [query]);
-  useEffect(() => {
-    if (query === null) return undefined;
-    const dismissOnOutsidePress = (event) => {
-      if (isMentionClickOutside(wrapRef.current, event.target)) {
-        setQuery(null);
-        setActiveIndex(0);
-      }
-    };
-    document.addEventListener("pointerdown", dismissOnOutsidePress);
-    return () =>
-      document.removeEventListener("pointerdown", dismissOnOutsidePress);
-  }, [query]);
-  const serializeEditor = (editor) => editor.innerText;
-  const sync = () => {
-    const editor = editorRef.current;
-    const selection = window.getSelection();
-    if (!editor || !selection?.rangeCount) return;
-    const range = selection.getRangeAt(0);
-    rangeRef.current = range.cloneRange();
-    const attempted = serializeEditor(editor).replace(/\u00a0/g, " ");
-    const text = keepWithinTextLimit(value, attempted);
-    if (text !== attempted) {
-      renderValue(true, value);
-      const end = document.createRange();
-      end.selectNodeContents(editor);
-      end.collapse(false);
-      selection.removeAllRanges();
-      selection.addRange(end);
-      rangeRef.current = end.cloneRange();
-    }
-    onChange(text);
-    const before = range.cloneRange();
-    before.selectNodeContents(editor);
-    before.setEnd(range.endContainer, range.endOffset);
-    const match = before.toString().match(/@([^@\s]*)$/);
-    if (match && wrapRef.current) {
-      const caret = range.cloneRange();
-      caret.collapse(false);
-      const caretRect = caret.getBoundingClientRect();
-      const wrapRect = wrapRef.current.getBoundingClientRect();
-      setMenuPosition(
-        getMentionMenuPosition(
-          {
-            right: caretRect.right - wrapRect.left,
-            bottom: caretRect.bottom - wrapRect.top,
-          },
-          wrapRef.current.clientWidth,
-        ),
-      );
-    }
-    setQuery(match ? match[1] : null);
-  };
-  const insertMention = (asset) => {
-    const range = rangeRef.current;
-    const editor = editorRef.current;
-    if (!range || !editor) return;
-    const removeLength = (query?.length || 0) + 1;
-    const currentText = serializeEditor(editor).replace(/\u00a0/g, " ");
-    const nextLength =
-      currentText.length - removeLength + asset.role.length + 2;
-    if (nextLength > 500) {
-      setQuery(null);
-      return;
-    }
-    if (
-      range.startContainer.nodeType === Node.TEXT_NODE &&
-      range.startOffset >= removeLength
-    )
-      range.setStart(range.startContainer, range.startOffset - removeLength);
-    range.deleteContents();
-    const token = createMentionToken(asset, `@${asset.role}`);
-    const space = document.createTextNode("\u00a0");
-    range.insertNode(space);
-    range.insertNode(token);
-    range.setStartAfter(space);
-    range.collapse(true);
-    const selection = window.getSelection();
-    selection.removeAllRanges();
-    selection.addRange(range);
-    editor.focus();
-    setQuery(null);
-    onChange(serializeEditor(editor).replace(/\u00a0/g, " "));
-  };
-  return (
-    <div ref={wrapRef} className="remake-mention-wrap">
-      <div
-        ref={editorRef}
-        className="remake-mention-editor"
-        contentEditable
-        role="textbox"
-        aria-label="替换需求"
-        aria-multiline="true"
-        aria-activedescendant={
-          query !== null && candidates[activeIndex]
-            ? `mention-option-${candidates[activeIndex].id}`
-            : undefined
-        }
-        data-placeholder="输入替换需求，输入 @ 引用左侧素材"
-        onInput={sync}
-        onKeyUp={(event) =>
-          !["Escape", "ArrowDown", "ArrowUp", "Enter"].includes(event.key) &&
-          sync()
-        }
-        onKeyDown={(event) => {
-          if (event.key === "Escape") {
-            event.preventDefault();
-            setQuery(null);
-            setActiveIndex(0);
-          }
-          if (
-            query !== null &&
-            (event.key === "ArrowDown" || event.key === "ArrowUp")
-          ) {
-            event.preventDefault();
-            setActiveIndex((index) =>
-              moveMentionSelection(
-                index,
-                event.key === "ArrowDown" ? 1 : -1,
-                candidates.length,
-              ),
-            );
-          }
-          if (
-            event.key === "Enter" &&
-            query !== null &&
-            candidates[activeIndex]
-          ) {
-            event.preventDefault();
-            insertMention(candidates[activeIndex]);
-            setActiveIndex(0);
-          }
-        }}
-      />
-      {query !== null && (
-        <div
-          className="remake-mention-menu"
-          role="listbox"
-          aria-label="引用替换素材"
-          style={menuPosition}
-        >
-          {candidates.length ? (
-            candidates.map((asset, index) => (
-              <button
-                type="button"
-                role="option"
-                id={`mention-option-${asset.id}`}
-                aria-selected={index === activeIndex}
-                className={index === activeIndex ? "active" : ""}
-                key={asset.id}
-                onMouseEnter={() => setActiveIndex(index)}
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => insertMention(asset)}
-              >
-                <span className={`remake-mention-thumb ${asset.type}`}>
-                  {asset.type === "image" && (asset.preview || asset.path) ? (
-                    <img src={asset.preview || asset.path} alt="" />
-                  ) : asset.type === "audio" ? (
-                    <AudioLines />
-                  ) : (
-                    <Video />
-                  )}
-                </span>
-                <span className="remake-mention-copy">
-                  <b>@{asset.role}</b>
-                  <small>
-                    {asset.type === "image"
-                      ? "图片"
-                      : asset.type === "audio"
-                        ? "音频"
-                        : "视频"}{" "}
-                    · {asset.name}
-                  </small>
-                </span>
-              </button>
-            ))
-          ) : (
-            <p>没有匹配的素材</p>
-          )}
-        </div>
-      )}
-      <small className="remake-request-count">{value.length}/500</small>
-      <span className="remake-at-hint">
-        <AtSign />
-        输入 @ 引用素材
-      </span>
-    </div>
-  );
-}
 
 function StepOne({ project, setProject, onDemo, onNext, notify }) {
   const chooseVideo = (event) => {
@@ -752,79 +495,6 @@ function BoardGallery({ originals = false, onOpen }) {
   );
 }
 
-function remarkAssetMentions() {
-  return (tree) => {
-    const visit = (node) => {
-      if (!Array.isArray(node.children)) return;
-      node.children = node.children.flatMap((child) => {
-        if (child.type !== "text" && child.type !== "inlineCode") {
-          visit(child);
-          return [child];
-        }
-        const parts = splitAssetMentions(child.value);
-        if (!parts.some((part) => part.type === "mention")) return [child];
-        return parts.map((part) =>
-          part.type === "mention"
-            ? {
-                type: "link",
-                url: `#asset-${encodeURIComponent(part.role)}`,
-                children: [{ type: "text", value: part.value }],
-              }
-            : { type: child.type, value: part.value },
-        );
-      });
-    };
-    visit(tree);
-  };
-}
-
-function AssetMention({ asset, reference }) {
-  return (
-    <span
-      className={`remake-mention-token${asset ? "" : " missing"}`}
-      data-reference={`@${reference}`}
-      title={asset?.name || "素材已删除"}
-      aria-label={asset ? `@${reference}，${asset.name}` : `@${reference}，素材已删除`}
-    >
-      <span
-        className="remake-token-thumb"
-        data-media-type={asset?.type || "missing"}
-        aria-hidden="true"
-      >
-        {asset?.type === "image" && (asset.preview || asset.path) && (
-          <img src={asset.preview || asset.path} alt="" />
-        )}
-      </span>
-      @{reference}
-    </span>
-  );
-}
-
-function AssetMarkdown({ value, assets, className = "" }) {
-  return (
-    <div className={`remake-markdown-body ${className}`.trim()}>
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkAssetMentions]}
-        components={{
-          a({ href, children }) {
-            const role = parseAssetReferenceHref(href);
-            if (role) {
-              return (
-                <AssetMention
-                  asset={assets.find((item) => item.role === role)}
-                  reference={role}
-                />
-              );
-            }
-            return <a href={href}>{children}</a>;
-          },
-        }}
-      >
-        {value}
-      </ReactMarkdown>
-    </div>
-  );
-}
 
 function DocumentEditor({
   title,

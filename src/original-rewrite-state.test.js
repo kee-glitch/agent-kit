@@ -145,7 +145,7 @@ test("模式页说明同步开放状态且 Demo 长需求可继续编辑", () =>
   assert.match(viralSource, /当前开放元素替换与原片仿写/);
   assert.ok(rewriteDemo.request.length > 500);
   assert.match(rewriteSource, /const REQUEST_LIMIT = 1000/);
-  assert.match(rewriteSource, /keepWithinTextLimit\(value\.request, request, REQUEST_LIMIT\)/);
+  assert.match(rewriteSource, /maxLength=\{REQUEST_LIMIT\}/);
 });
 
 test("损坏片段展示字段和矛盾步骤会恢复安全值", () => {
@@ -181,7 +181,7 @@ test("工作流具备任务失效、独立生成、重提取和实时片段弹�
 });
 
 test("需求编辑器支持素材候选、失效提示和键盘列表", () => {
-  const source = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
+  const source = readFileSync(new URL("./AssetMentions.jsx", import.meta.url), "utf8");
   assert.match(source, /role="listbox"/);
   assert.match(source, /role="option"/);
   assert.match(source, /素材已删除/);
@@ -212,4 +212,22 @@ test("原片仿写六步导航沿用元素替换的白底连线样式", () => {
   assert.match(styles, /\.rewrite-steps button>i\{[^}]*left:50%[^}]*right:-50%[^}]*height:1px/);
   assert.match(styles, /\.rewrite-steps button\.complete>i\{background:var\(--color-success\)/);
   assert.match(styles, /\.rewrite-steps button\.complete>span\{[^}]*background:var\(--color-success-subtle\)/);
+});
+
+test("原片仿写复用带缩略图的资源引用并提供未生成状态", () => {
+  const sharedUrl = new URL("./AssetMentions.jsx", import.meta.url);
+  assert.equal(existsSync(sharedUrl), true, "应提取共享资源引用组件");
+  const shared = readFileSync(sharedUrl, "utf8");
+  const rewrite = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
+  const viral = readFileSync(new URL("./ViralRemake.jsx", import.meta.url), "utf8");
+  const styles = readFileSync(new URL("./original-rewrite.css", import.meta.url), "utf8");
+  assert.match(shared, /export function MentionEditor/);
+  assert.match(shared, /export function AssetMarkdown/);
+  assert.match(shared, /remake-token-thumb/);
+  assert.match(rewrite, /className="rewrite-video-ready"/);
+  assert.match(rewrite, /尚未生成故事面板/);
+  assert.match(rewrite, /<MentionEditor/);
+  assert.match(rewrite, /<AssetMarkdown/);
+  assert.match(viral, /import \{ AssetMarkdown, MentionEditor \} from "\.\/AssetMentions"/);
+  assert.match(styles, /\.rewrite-steps button:hover\{background:transparent\}/);
 });
