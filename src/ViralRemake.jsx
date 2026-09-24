@@ -159,7 +159,7 @@ function ModeSelection({ onSelect, notify }) {
         ))}
       </section>
       <footer className="remake-mode-footer">
-        <span>当前仅开放元素替换模式</span>
+        <span>当前开放元素替换与原片仿写</span>
         <i />
         <span>所有处理均为前端 Demo 演示</span>
       </footer>

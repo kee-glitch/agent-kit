@@ -1,22 +1,68 @@
-import React, { useState } from "react";
-import { ArrowLeft, Check, RotateCcw, Save } from "lucide-react";
-import { rewriteSteps } from "./original-rewrite-data";
-import { REWRITE_STORAGE_KEY, createRewriteProject, persistRewriteProject, setRewriteStep } from "./original-rewrite-state";
+import React, { useEffect, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { ArrowLeft, ArrowRight, Check, CheckCircle2, Eye, FilePenLine, Image as ImageIcon, LoaderCircle, Maximize2, Play, RefreshCw, RotateCcw, Save, Trash2, Upload, Video, WandSparkles } from "lucide-react";
+import { rewriteDemo, rewriteReferences, rewriteSteps } from "./original-rewrite-data";
+import { REWRITE_MODELS, REWRITE_STORAGE_KEY, advanceRewriteStep, clearRewriteVideo, createRewriteProject, loadRewriteDemo, persistRewriteProject, queueRewriteJobs, removeRewriteReference, replaceRewriteVideo, setRewriteJobStatus, setRewriteStep, toggleAllRewriteSelections, toggleRewriteSelection, updateRewriteDocument, updateRewriteSegmentDocument, upsertRewriteReference } from "./original-rewrite-state";
+import { ASPECT_RATIOS, beginLatestRequest, isBackdropSelfClick, isLatestRequest, keepWithinTextLimit } from "./viral-remake-state";
 import "./original-rewrite.css";
+
+const readFile = (file) => new Promise((resolve) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.readAsDataURL(file); });
+const statusText = { idle: "待生成", running: "生成中", done: "已完成" };
+const REQUEST_LIMIT = 1000;
+
+function RewriteModal({ modal, onClose }) {
+  const closeRef = useRef(null);
+  useEffect(() => {
+    if (!modal) return undefined;
+    const previous = document.activeElement;
+    const keydown = (event) => event.key === "Escape" && onClose();
+    document.addEventListener("keydown", keydown);
+    document.body.style.overflow = "hidden";
+    requestAnimationFrame(() => closeRef.current?.focus());
+    return () => { document.removeEventListener("keydown", keydown); document.body.style.overflow = ""; previous?.focus?.(); };
+  }, [modal, onClose]);
+  if (!modal) return null;
+  return <div className="rewrite-modal" role="dialog" aria-modal="true" aria-label={modal.title} onMouseDown={(event) => isBackdropSelfClick(event.target, event.currentTarget) && onClose()}><div className="rewrite-modal-card"><header><h2>{modal.title}</h2><small>{modal.subtitle}</small></header><div className="rewrite-modal-body">{modal.content}</div><footer><button ref={closeRef} onClick={onClose}>关闭</button></footer></div></div>;
+}
+
+const StageHeading = ({ step, title, description, action }) => <header className="rewrite-stage-heading"><div><span className="remake-kicker">STEP {String(step).padStart(2, "0")}</span><h1>{title}</h1><p>{description}</p></div>{action}</header>;
+const Footer = ({ back, next, nextLabel = "继续", disabled = false }) => <footer className="rewrite-stage-footer">{back ? <button className="secondary" onClick={back}>返回上一步</button> : <span />}<button className="primary" disabled={disabled} onClick={next}>{nextLabel}<ArrowRight /></button></footer>;
+
+function DocumentCard({ title, value, onSave, editLabel }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  useEffect(() => { if (!editing) setDraft(value); }, [value, editing]);
+  return <article className="rewrite-document"><header><div><FilePenLine /><div><strong>{title}</strong><small>Markdown 故事面板</small></div></div><button onClick={() => setEditing((current) => !current)}>{editing ? "取消编辑" : "编辑"}</button></header>{editing ? <><textarea aria-label={editLabel} value={draft} onChange={(event) => setDraft(event.target.value)} /><div className="rewrite-document-actions"><button className="primary" onClick={() => { onSave(draft); setEditing(false); }}>保存修改</button></div></> : <div className="rewrite-markdown"><ReactMarkdown remarkPlugins={[remarkGfm]}>{value}</ReactMarkdown></div>}</article>;
+}
 
 export default function OriginalRewrite({ onBack, notify }) {
   const [project, setProject] = useState(() => createRewriteProject(localStorage.getItem(REWRITE_STORAGE_KEY)));
-  const reset = () => setProject(createRewriteProject());
-  return (
-    <section className="original-rewrite">
-      <header className="rewrite-project-header">
-        <div><button aria-label="返回模式选择" onClick={onBack}><ArrowLeft /></button><span>爆款复刻 / 原片仿写</span><strong>{project.videoName || "未命名项目"}</strong></div>
-        <div><button onClick={reset}><RotateCcw />重新开始</button><button className="primary" onClick={() => { persistRewriteProject(localStorage, project); notify("原片仿写草稿已保存"); }}><Save />保存草稿</button></div>
-      </header>
-      <nav className="rewrite-steps" aria-label="原片仿写项目进度">
-        {rewriteSteps.map((label, index) => { const number = index + 1; const complete = number < project.step; return <button key={label} className={number === project.step ? "active" : complete ? "complete" : ""} disabled={number > project.maxStep} onClick={() => setProject((value) => setRewriteStep(value, number))}><span>{complete ? <Check /> : number}</span><b>{label}</b></button>; })}
-      </nav>
-      <div className="rewrite-stage"><span className="remake-kicker">STEP {String(project.step).padStart(2, "0")}</span><h1>{rewriteSteps[project.step - 1]}</h1><p>原片仿写工作流正在准备当前阶段。</p></div>
-    </section>
-  );
+  const [modal, setModal] = useState(null);
+  const [busy, setBusy] = useState("");
+  const timers = useRef(new Set());
+  const latestReferenceRequest = useRef(new Map());
+  const projectRef = useRef(project);
+  projectRef.current = project;
+  useEffect(() => () => { timers.current.forEach(window.clearTimeout); timers.current.clear(); }, []);
+  const later = (callback, delay = 650) => { const timer = window.setTimeout(() => { timers.current.delete(timer); callback(); }, delay); timers.current.add(timer); };
+  const goBack = () => setProject((value) => setRewriteStep(value, value.step - 1));
+  const next = () => setProject((value) => advanceRewriteStep(value));
+  const loadDemo = () => { setProject((value) => ({ ...loadRewriteDemo(value), step: 1, maxStep: 1 })); notify("完整原片仿写 Demo 已载入"); };
+  const runStage = (name, updater, message) => { if (busy) return; setBusy(name); later(() => { setProject((value) => updater(value)); setBusy(""); notify(message); }); };
+  const scheduleJobs = (kind, ids) => { const result = queueRewriteJobs(projectRef.current, kind, ids); setProject(result.project); result.started.forEach((id) => later(() => setProject((value) => setRewriteJobStatus(value, kind, id, "done")), 720)); };
+  const chooseReference = async (sourceId, file) => { const request = beginLatestRequest(latestReferenceRequest.current, sourceId); const preview = await readFile(file); if (!isLatestRequest(latestReferenceRequest.current, sourceId, request)) return; const definition = rewriteReferences.find((item) => item.id === sourceId); setProject((value) => upsertRewriteReference(value, { id: sourceId, sourceId, role: definition.role, name: file.name, preview })); };
+  const clearReference = (sourceId) => { beginLatestRequest(latestReferenceRequest.current, sourceId); setProject((value) => removeRewriteReference(value, sourceId)); };
+  const selectedIds = project.segments.filter((item) => item.selected).map((item) => item.id);
+  const allVideosDone = project.segments.length === 4 && project.segments.every((item) => item.videoStatus === "done");
+
+  let stage;
+  if (project.step === 1) stage = <section className="rewrite-stage"><StageHeading step={1} title="上传原视频" description="上传要仿写的视频，并设置生成模型与最终画幅。" action={<button className="secondary" onClick={loadDemo}><WandSparkles />加载 Demo</button>} />{project.videoName ? <div className="rewrite-uploaded-video"><video src={project.videoPath || rewriteDemo.videoPath} controls preload="metadata" /><div><strong>{project.videoName}</strong><small>MP4 / MOV 原始素材</small><div><label><input aria-label="替换原视频" type="file" accept="video/mp4,video/quicktime,.mp4,.mov" onChange={(event) => { const file = event.target.files?.[0]; if (file) setProject((value) => replaceRewriteVideo(value, { name: file.name, preview: URL.createObjectURL(file) })); }} /><Upload />替换</label><button onClick={() => setProject((value) => clearRewriteVideo(value))}><Trash2 />删除</button></div></div></div> : <label className="rewrite-upload"><input aria-label="上传原视频" type="file" accept="video/mp4,video/quicktime,.mp4,.mov" onChange={(event) => { const file = event.target.files?.[0]; if (file) setProject((value) => replaceRewriteVideo(value, { name: file.name, preview: URL.createObjectURL(file) })); }} /><Video /><strong>上传原视频</strong><small>支持 MP4、MOV</small></label>}<div className="rewrite-options"><label>生成模型<select value={project.model} onChange={(event) => setProject((value) => ({ ...value, model: event.target.value }))}>{REWRITE_MODELS.map((model) => <option key={model}>{model}</option>)}</select></label><label>画面比例<select value={project.aspectRatio} onChange={(event) => setProject((value) => ({ ...value, aspectRatio: event.target.value }))}>{ASPECT_RATIOS.map((ratio) => <option key={ratio}>{ratio}</option>)}</select></label></div><Footer disabled={!project.videoName || busy === "breakdown"} nextLabel={busy === "breakdown" ? "正在拆解" : "开始拆解"} next={() => runStage("breakdown", (value) => advanceRewriteStep({ ...loadRewriteDemo(value), videoName: value.videoName, videoPath: value.videoPath }), "视频拆解完成")} /></section>;
+  else if (project.step === 2) stage = <section className="rewrite-stage"><StageHeading step={2} title="拆解视频" description="检查视频结构、镜头节奏和逐秒抽帧结果。" action={<button className="secondary" disabled={busy === "breakdown"} onClick={() => runStage("breakdown", (value) => value, "已重新完成拆解")}><RefreshCw className={busy ? "spin" : ""} />重新拆解</button>} /><div className="rewrite-breakdown-grid"><article className="rewrite-media-card"><video src={project.videoPath || rewriteDemo.videoPath} controls preload="metadata" /><strong>{project.videoName}</strong><small>{project.aspectRatio} · {project.model}</small></article><article className="rewrite-storyboard-card"><button aria-label="查看逐秒拆解大图" onClick={() => setModal({ title: "逐秒拆解分镜", content: <img src={rewriteDemo.storyboardPath} alt="逐秒拆解分镜" /> })}><img src={rewriteDemo.storyboardPath} alt="逐秒拆解缩略图" /><Maximize2 /></button></article></div><DocumentCard title="视频拆解报告" value={project.documents.breakdown} editLabel="编辑视频拆解报告" onSave={(document) => setProject((value) => updateRewriteDocument(value, "breakdown", document))} /><Footer back={goBack} next={next} /></section>;
+  else if (project.step === 3) stage = <section className="rewrite-stage"><StageHeading step={3} title="原片仿写" description="配置产品参考图与改写需求，生成完整故事面板。" /><div className="rewrite-reference-grid">{rewriteReferences.map((resource) => { const asset = project.references.find((item) => item.sourceId === resource.id); return <article key={resource.id} data-source-id={resource.id}><div className="rewrite-reference-preview">{asset ? <img src={asset.preview || asset.path} alt={resource.title} /> : <ImageIcon />}</div><div><strong>{resource.role} · {resource.title}</strong><small>{asset ? asset.name : "素材已删除 / 尚未上传"}</small></div><label><input type="file" accept="image/*" onChange={(event) => event.target.files?.[0] && chooseReference(resource.id, event.target.files[0])} /><Upload />{asset ? "替换" : "上传"}</label>{asset && <button aria-label={`清空${resource.title}`} onClick={() => clearReference(resource.id)}><Trash2 /></button>}</article>; })}</div><label className="rewrite-request"><span>仿写需求 <small>输入 @图片1 或 @图片2 引用素材</small></span><textarea value={project.request} onChange={(event) => setProject((value) => ({ ...value, request: keepWithinTextLimit(value.request, event.target.value, REQUEST_LIMIT) }))} /><small>{project.request.length}/{REQUEST_LIMIT}</small></label><DocumentCard title="原片仿写故事面板" value={project.documents.rewrite} editLabel="编辑原片仿写故事面板" onSave={(document) => setProject((value) => updateRewriteDocument(value, "rewrite", document))} /><Footer back={goBack} disabled={!project.documents.rewrite} next={next} nextLabel="确认并提取片段" /></section>;
+  else if (project.step === 4) stage = <section className="rewrite-stage"><StageHeading step={4} title="提取片段" description="校对四段故事面板，选择后进入逐秒重绘。" action={<button className="secondary" onClick={() => setProject((value) => toggleAllRewriteSelections(value))}>{project.segments.every((item) => item.selected) ? "取消全选" : "全选"}</button>} /><div className="rewrite-segment-grid">{project.segments.map((segment) => <article className={`rewrite-segment${segment.selected ? " selected" : ""}`} key={segment.id}><button className="rewrite-segment-select" aria-pressed={segment.selected} onClick={() => setProject((value) => toggleRewriteSelection(value, segment.id))}><span>片段 {String(segment.number).padStart(2, "0")}</span><strong>{segment.title}</strong><small>{segment.time} · {segment.shotCount} 个镜头</small></button><button onClick={() => setModal({ title: segment.title, subtitle: segment.time, content: <DocumentCard title={`${segment.title}故事面板`} value={segment.document} editLabel="编辑片段故事面板" onSave={(document) => setProject((value) => updateRewriteSegmentDocument(value, segment.id, document))} /> })}><Eye />查看完整故事面板</button></article>)}</div><Footer back={goBack} next={next} disabled={!project.segments.length} nextLabel="进入逐秒重绘" /></section>;
+  else if (project.step === 5) stage = <section className="rewrite-stage"><StageHeading step={5} title="逐秒重绘" description="按片段生成逐秒分镜，并检查角色与商品稳定性。" action={<button className="primary" disabled={!selectedIds.length} onClick={() => scheduleJobs("redraw", selectedIds)}><WandSparkles />批量生成重绘</button>} /><div className="rewrite-output-grid">{project.segments.map((segment) => <article key={segment.id}><button className="rewrite-output-media" onClick={() => segment.redrawStatus === "done" && setModal({ title: `${segment.title}重绘分镜`, content: <img src={segment.redrawPath} alt={`${segment.title}重绘分镜`} /> })}>{segment.redrawStatus === "done" ? <img src={segment.redrawPath} alt={`${segment.title}重绘`} /> : <ImageIcon />}</button><div><span className={`rewrite-status ${segment.redrawStatus}`}>{statusText[segment.redrawStatus]}</span><strong>{segment.title}</strong><small>{segment.time}</small><button disabled={segment.redrawStatus === "running"} onClick={() => scheduleJobs("redraw", [segment.id])}>{segment.redrawStatus === "running" ? <LoaderCircle className="spin" /> : <RefreshCw />}{segment.redrawStatus === "done" ? "重新生成" : "生成重绘"}</button></div></article>)}</div><Footer back={goBack} next={next} disabled={!project.segments.every((item) => item.redrawStatus === "done")} nextLabel="进入视频生成" /></section>;
+  else stage = <section className="rewrite-stage"><StageHeading step={6} title="生成视频" description="生成并预览四段成片，完成原片仿写项目。" action={<button className="primary" disabled={!selectedIds.length} onClick={() => scheduleJobs("video", selectedIds)}><Play />批量生成视频</button>} />{allVideosDone && <div className="rewrite-complete"><CheckCircle2 /><div><strong>项目已完成</strong><small>4 个片段 · 59秒 · {project.aspectRatio} · {project.model}</small></div></div>}<div className="rewrite-video-grid">{project.segments.map((segment) => <article key={segment.id}>{segment.videoStatus === "done" ? <video src={segment.videoPath} controls preload="metadata" aria-label={`片段${segment.number}生成视频`} /> : <div className="rewrite-video-pending"><Video /><span>{statusText[segment.videoStatus]}</span></div>}<div><span className={`rewrite-status ${segment.videoStatus}`}>{statusText[segment.videoStatus]}</span><strong>{segment.title}</strong><small>{segment.time}</small><button disabled={segment.videoStatus === "running"} onClick={() => scheduleJobs("video", [segment.id])}>{segment.videoStatus === "running" ? <LoaderCircle className="spin" /> : <RefreshCw />}{segment.videoStatus === "done" ? "重新生成" : "生成视频"}</button></div></article>)}</div><footer className="rewrite-stage-footer"><button className="secondary" onClick={goBack}>返回上一步</button><span /></footer></section>;
+
+  return <section className="original-rewrite"><header className="rewrite-project-header"><div><button aria-label="返回模式选择" onClick={onBack}><ArrowLeft /></button><span>爆款复刻 / 原片仿写</span><strong>{project.videoName || "未命名项目"}</strong></div><div><button onClick={() => setProject(createRewriteProject())}><RotateCcw />重新开始</button><button className="primary" onClick={() => { persistRewriteProject(localStorage, project); notify("原片仿写草稿已保存"); }}><Save />保存草稿</button></div></header><nav className="rewrite-steps" aria-label="原片仿写项目进度">{rewriteSteps.map((label, index) => { const number = index + 1; const complete = number < project.step; return <button key={label} className={number === project.step ? "active" : complete ? "complete" : ""} disabled={number > project.maxStep} onClick={() => setProject((value) => setRewriteStep(value, number))}><span>{complete ? <Check /> : number}</span><b>{label}</b></button>; })}</nav>{stage}<RewriteModal modal={modal} onClose={() => setModal(null)} /></section>;
 }

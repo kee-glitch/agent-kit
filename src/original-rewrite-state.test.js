@@ -105,3 +105,45 @@ test("模式选择开放原片仿写并挂载六步工作台", () => {
   assert.match(rewriteSource, /rewriteSteps\.map/);
   assert.match(rewriteSource, /aria-label="原片仿写项目进度"/);
 });
+
+test("上传和拆解阶段提供媒体、Demo、重新拆解与大图预览", () => {
+  const source = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
+  assert.match(source, /accept="video\/mp4,video\/quicktime,\.mp4,\.mov"/);
+  assert.match(source, /aria-label="上传原视频"/);
+  assert.match(source, /加载 Demo/);
+  assert.match(source, /重新拆解/);
+  assert.match(source, /aria-label="查看逐秒拆解大图"/);
+});
+
+test("原片仿写阶段提供两个引用素材、需求和可编辑故事面板", () => {
+  const source = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
+  assert.deepEqual(rewriteDemo.referenceAssets.map((item) => item.sourceId), ["product-bottle", "product-detail"]);
+  assert.match(source, /accept="image\/\*"/);
+  assert.match(source, /素材已删除/);
+  assert.match(source, /editLabel="编辑原片仿写故事面板"/);
+});
+
+test("提取片段提供选择、全选、详情和编辑", () => {
+  const source = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
+  assert.match(source, /aria-pressed=\{segment\.selected\}/);
+  assert.match(source, /全选/);
+  assert.match(source, /查看完整故事面板/);
+  assert.match(source, /editLabel="编辑片段故事面板"/);
+});
+
+test("重绘和视频阶段提供单段批量生成及原生播放", () => {
+  const source = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
+  assert.match(source, /批量生成重绘/);
+  assert.match(source, /批量生成视频/);
+  assert.match(source, /controls/);
+  assert.match(source, /项目已完成/);
+});
+
+test("模式页说明同步开放状态且 Demo 长需求可继续编辑", () => {
+  const viralSource = readFileSync(new URL("./ViralRemake.jsx", import.meta.url), "utf8");
+  const rewriteSource = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
+  assert.match(viralSource, /当前开放元素替换与原片仿写/);
+  assert.ok(rewriteDemo.request.length > 500);
+  assert.match(rewriteSource, /const REQUEST_LIMIT = 1000/);
+  assert.match(rewriteSource, /keepWithinTextLimit\(value\.request, event\.target\.value, REQUEST_LIMIT\)/);
+});
