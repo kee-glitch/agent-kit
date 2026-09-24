@@ -195,3 +195,11 @@ test("弹层限制焦点且窄屏标题取消固定高度", () => {
   assert.match(source, /event\.key === "Tab"/);
   assert.match(styles, /\.rewrite-stage-heading\{[^}]*height:auto/);
 });
+
+test("原片仿写按钮沿用元素替换的统一规格", () => {
+  const styles = readFileSync(new URL("./original-rewrite.css", import.meta.url), "utf8");
+  assert.match(styles, /\.original-rewrite button:not\(\.rewrite-segment-select\):not\(\.rewrite-output-media\):not\(\.rewrite-storyboard-card button\)\{[^}]*height:36px/);
+  assert.match(styles, /\.original-rewrite button\.primary\{[^}]*background:var\(--color-bg-inverse\)/);
+  assert.match(styles, /\.original-rewrite button:disabled\{[^}]*background:var\(--color-bg-subtle\)[^}]*color:var\(--color-text-disabled\)/);
+  assert.match(styles, /\.original-rewrite button:focus-visible/);
+});
