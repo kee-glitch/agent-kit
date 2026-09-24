@@ -84,6 +84,7 @@ import {
   upsertBoundReplacementAsset,
 } from "./viral-remake-state";
 import "./viral-remake.css";
+import OriginalRewrite from "./OriginalRewrite";
 
 const MODELS = [
   "seedance 2.0 mini",
@@ -143,7 +144,7 @@ function ModeSelection({ onSelect, notify }) {
             <p>{mode.description}</p>
             <button
               disabled={!mode.active}
-              onClick={() => mode.active && onSelect()}
+              onClick={() => mode.active && onSelect(mode.id)}
             >
               {mode.active ? (
                 <>
@@ -1700,7 +1701,7 @@ function StepFour({
 }
 
 export default function ViralRemake() {
-  const [selected, setSelected] = useState(false);
+  const [mode, setMode] = useState(null);
   const [project, setProject] = useState(() =>
     createInitialProject(localStorage.getItem(STORAGE_KEY) || {}),
   );
@@ -1790,18 +1791,20 @@ export default function ViralRemake() {
     if (!window.confirm("确定清空当前草稿并重新开始吗？")) return;
     localStorage.removeItem(STORAGE_KEY);
     setProject(createInitialProject());
-    setSelected(false);
+    setMode(null);
     notify("项目已重置");
   };
   return (
     <main className="viral-remake-shell">
-      {!selected ? (
-        <ModeSelection onSelect={() => setSelected(true)} notify={notify} />
+      {!mode ? (
+        <ModeSelection onSelect={setMode} notify={notify} />
+      ) : mode === "rewrite" ? (
+        <OriginalRewrite onBack={() => setMode(null)} notify={notify} />
       ) : (
         <div className="remake-workspace">
           <WorkflowHeader
             project={project}
-            onBack={() => setSelected(false)}
+            onBack={() => setMode(null)}
             onStep={(step) =>
               setProject((value) => setCurrentStep(value, step))
             }

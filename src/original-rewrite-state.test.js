@@ -95,3 +95,13 @@ test("保存草稿移除本地预览并使用独立键", () => {
   assert.equal(storage.key, REWRITE_STORAGE_KEY);
   assert.doesNotMatch(storage.value, /base64/);
 });
+
+test("模式选择开放原片仿写并挂载六步工作台", () => {
+  const viralSource = readFileSync(new URL("./ViralRemake.jsx", import.meta.url), "utf8");
+  const rewriteSource = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
+  assert.match(viralSource, /onSelect\(mode\.id\)/);
+  assert.match(viralSource, /mode === "rewrite"/);
+  assert.match(viralSource, /<OriginalRewrite/);
+  assert.match(rewriteSource, /rewriteSteps\.map/);
+  assert.match(rewriteSource, /aria-label="原片仿写项目进度"/);
+});
