@@ -8,17 +8,36 @@ const EMPTY_DOCUMENTS = { breakdown: "", rewrite: "" };
 const EMPTY_PROJECT = { step: 1, maxStep: 1, videoName: "", videoPath: "", model: "seedance 2.0", aspectRatio: "9:16", request: "", references: [], documents: EMPTY_DOCUMENTS, segments: [], savedAt: "" };
 const validStatus = (status) => status === "done" || status === "idle" ? status : "idle";
 const cleanAsset = (asset) => ({ id: String(asset.id || asset.sourceId || asset.role), sourceId: String(asset.sourceId || ""), role: String(asset.role || ""), name: String(asset.name || ""), ...(typeof asset.path === "string" ? { path: asset.path } : {}), ...(typeof asset.preview === "string" ? { preview: asset.preview } : {}) });
-const cleanSegment = (segment, fallback = {}) => ({ ...fallback, ...segment, id: String(segment.id || fallback.id || ""), document: typeof segment.document === "string" ? segment.document : fallback.document || "", selected: segment.selected !== false, redrawStatus: validStatus(segment.redrawStatus), videoStatus: validStatus(segment.videoStatus) });
+const cleanString = (value, fallback = "") => typeof value === "string" ? value : fallback;
+const cleanNumber = (value, fallback = 0) => Number.isFinite(value) ? value : fallback;
+const cleanSegment = (segment, fallback = {}) => ({
+  ...fallback,
+  id: cleanString(segment.id, fallback.id || ""),
+  number: cleanNumber(segment.number, fallback.number),
+  title: cleanString(segment.title, fallback.title),
+  time: cleanString(segment.time, fallback.time),
+  shotCount: cleanNumber(segment.shotCount, fallback.shotCount),
+  document: cleanString(segment.document, fallback.document || ""),
+  redrawPath: cleanString(segment.redrawPath, fallback.redrawPath),
+  videoPath: cleanString(segment.videoPath, fallback.videoPath),
+  selected: segment.selected !== false,
+  redrawStatus: validStatus(segment.redrawStatus),
+  videoStatus: validStatus(segment.videoStatus),
+});
 
 export function createRewriteProject(saved = {}) {
   let value = saved;
   if (typeof saved === "string") { try { value = JSON.parse(saved); } catch { value = {}; } }
   if (!value || typeof value !== "object" || Array.isArray(value)) value = {};
   const rawSegments = Array.isArray(value.segments) ? value.segments : [];
+  const maxStep = Number.isInteger(value.maxStep) && value.maxStep >= 1 && value.maxStep <= 6 ? value.maxStep : 1;
+  const savedStep = Number.isInteger(value.step) && value.step >= 1 && value.step <= maxStep ? value.step : 1;
+  const hasMissingLocalVideo = typeof value.videoName === "string" && value.videoName && !(typeof value.videoPath === "string" && value.videoPath && !value.videoPath.startsWith("blob:"));
+  const step = hasMissingLocalVideo ? 1 : savedStep;
   return {
     ...EMPTY_PROJECT,
-    step: Number.isInteger(value.step) && value.step >= 1 && value.step <= 6 ? value.step : 1,
-    maxStep: Number.isInteger(value.maxStep) && value.maxStep >= 1 && value.maxStep <= 6 ? value.maxStep : 1,
+    step,
+    maxStep,
     videoName: typeof value.videoName === "string" ? value.videoName : "",
     videoPath: typeof value.videoPath === "string" && !value.videoPath.startsWith("blob:") ? value.videoPath : "",
     model: REWRITE_MODELS.includes(value.model) ? value.model : EMPTY_PROJECT.model,
