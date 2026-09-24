@@ -829,11 +829,13 @@ function DocumentEditor({
   title,
   value,
   assets,
+  onChange,
   onSave,
   onRegenerate,
   regenerating,
 }) {
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
   const triggerRef = useRef(null);
   const closeRef = useRef(null);
   const dialogRef = useRef(null);
@@ -862,40 +864,62 @@ function DocumentEditor({
             </div>
           </div>
           <div>
+            <button
+              type="button"
+              aria-label={`编辑${title}`}
+              onClick={() => setEditing((value) => !value)}
+            >
+              <FilePenLine />
+              {editing ? "预览" : "编辑"}
+            </button>
             <button onClick={onRegenerate} disabled={regenerating}>
               {regenerating ? <LoaderCircle className="spin" /> : <RefreshCw />}
               {regenerating ? "生成中" : "重新生成"}
             </button>
-            <button className="primary" onClick={onSave}>
+            <button
+              className="primary"
+              onClick={() => {
+                onSave();
+                setEditing(false);
+              }}
+            >
               <Save />
               保存
             </button>
           </div>
         </header>
-        <div
-          ref={triggerRef}
-          className="remake-storyboard-trigger"
-          role="button"
-          tabIndex={0}
-          aria-label={`阅读完整${title}`}
-          onClick={() => setOpen(true)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" || event.key === " ") {
-              event.preventDefault();
-              setOpen(true);
-            }
-          }}
-        >
-          <AssetMarkdown
+        {editing ? (
+          <textarea
+            aria-label="故事面板正文"
             value={value}
-            assets={assets}
-            className="remake-storyboard-preview"
+            onChange={(event) => onChange(event.target.value)}
           />
-          <span className="remake-storyboard-read-more">
-            <Maximize2 />
-            点击阅读完整内容
-          </span>
-        </div>
+        ) : (
+          <div
+            ref={triggerRef}
+            className="remake-storyboard-trigger"
+            role="button"
+            tabIndex={0}
+            aria-label={`阅读完整${title}`}
+            onClick={() => setOpen(true)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                setOpen(true);
+              }
+            }}
+          >
+            <AssetMarkdown
+              value={value}
+              assets={assets}
+              className="remake-storyboard-preview"
+            />
+            <span className="remake-storyboard-read-more">
+              <Maximize2 />
+              点击阅读完整内容
+            </span>
+          </div>
+        )}
       </article>
       {open && (
         <div
@@ -1298,6 +1322,9 @@ function StepThree({
         title="替换后的故事面板"
         value={value}
         assets={project.assets}
+        onChange={(nextValue) =>
+          setProject((value) => updateDocument(value, "storyboard", nextValue))
+        }
         onSave={save}
         onRegenerate={regenerate}
         regenerating={regenerating}

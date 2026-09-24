@@ -63,6 +63,22 @@ test("复刻流程只保留四个步骤并在片段提取结束", () => {
   assert.deepEqual(steps, ["拆解视频", "替换素材", "替换结果", "提取片段"]);
 });
 
+test("替换后的故事面板支持切换编辑并保存正文", () => {
+  assert.match(
+    viralRemakeSource,
+    /function DocumentEditor\(\{[\s\S]*?onChange,[\s\S]*?\}\)/,
+  );
+  assert.match(viralRemakeSource, /aria-label=\{`编辑\$\{title\}`\}/);
+  assert.match(
+    viralRemakeSource,
+    /<textarea[\s\S]*?value=\{value\}[\s\S]*?onChange=\{\(event\) => onChange\(event\.target\.value\)\}/,
+  );
+  assert.match(
+    viralRemakeSource,
+    /onChange=\{\(nextValue\) =>[\s\S]*?updateDocument\(value, "storyboard", nextValue\)/,
+  );
+});
+
 test("项目流程不会进入已移除的第五步", () => {
   const project = createInitialProject({
     step: 4,
