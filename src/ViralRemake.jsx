@@ -866,7 +866,7 @@ function DocumentEditor({
           <div>
             <button
               type="button"
-              aria-label={`编辑${title}`}
+              aria-label={editing ? `预览${title}` : `编辑${title}`}
               onClick={() => setEditing((value) => !value)}
             >
               <FilePenLine />

@@ -68,7 +68,10 @@ test("替换后的故事面板支持切换编辑并保存正文", () => {
     viralRemakeSource,
     /function DocumentEditor\(\{[\s\S]*?onChange,[\s\S]*?\}\)/,
   );
-  assert.match(viralRemakeSource, /aria-label=\{`编辑\$\{title\}`\}/);
+  assert.match(
+    viralRemakeSource,
+    /aria-label=\{editing \? `预览\$\{title\}` : `编辑\$\{title\}`\}/,
+  );
   assert.match(
     viralRemakeSource,
     /<textarea[\s\S]*?value=\{value\}[\s\S]*?onChange=\{\(event\) => onChange\(event\.target\.value\)\}/,
