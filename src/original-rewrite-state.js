@@ -78,7 +78,7 @@ export function setRewriteStep(project, requested) { return { ...project, step: 
 
 export function canAdvanceRewrite(project) {
   if (project.step === 1) return Boolean(project.videoName.trim());
-  if (project.step === 2) return Boolean(project.documents.breakdown);
+  if (project.step === 2) return Boolean(project.documents.rewrite);
   if (project.step === 3) return Boolean(project.documents.rewrite);
   if (project.step === 4) return project.segments.length > 0;
   if (project.step === 5) return project.segments.length > 0 && project.segments.every((item) => item.redrawStatus === "done");

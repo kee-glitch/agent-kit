@@ -24,8 +24,8 @@ import {
 test("原片仿写定义六个阶段和四个完整片段", () => {
   assert.deepEqual(rewriteSteps, [
     "上传原视频",
-    "拆解视频",
     "原片仿写",
+    "展示仿写结果",
     "提取片段",
     "逐秒重绘",
     "生成视频",
@@ -36,6 +36,14 @@ test("原片仿写定义六个阶段和四个完整片段", () => {
     assert.match(segment.redrawPath, /^\.\/original-rewrite-demo\/redraw-[1-4]\.png$/);
     assert.match(segment.videoPath, /^\.\/original-rewrite-demo\/segment-[1-4]\.mp4$/);
   }
+});
+
+test("原片仿写合并拆解内容并在生成结果后进入展示步骤", () => {
+  const demo = loadRewriteDemo(createRewriteProject());
+  const composing = { ...demo, step: 2, maxStep: 2, documents: { ...demo.documents, rewrite: "" } };
+  assert.equal(advanceRewriteStep(composing).step, 2);
+  const generated = { ...composing, documents: { ...composing.documents, rewrite: "# 仿写结果" } };
+  assert.equal(advanceRewriteStep(generated).step, 3);
 });
 
 test("原片仿写公共 Demo 资源全部存在且非空", () => {
@@ -124,20 +132,25 @@ test("模式选择开放原片仿写并挂载六步工作台", () => {
   assert.match(rewriteSource, /aria-label="原片仿写项目进度"/);
 });
 
-test("上传和拆解阶段提供媒体、Demo、重新拆解与大图预览", () => {
+test("上传和原片仿写阶段提供媒体、Demo、拆解内容与大图预览", () => {
   const source = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
   assert.match(source, /accept="video\/mp4,video\/quicktime,\.mp4,\.mov"/);
   assert.match(source, /aria-label="上传原视频"/);
   assert.match(source, /加载 Demo/);
   assert.match(source, /重新拆解/);
   assert.match(source, /aria-label="查看逐秒拆解大图"/);
+  assert.match(source, /className="rewrite-compose-grid"/);
+  assert.match(source, /title="视频拆解与复刻框架"/);
+  assert.match(source, /原视频逐秒分镜/);
 });
 
-test("原片仿写阶段提供两个引用素材、需求和可编辑故事面板", () => {
+test("原片仿写阶段提供两个引用素材和仿写需求，结果步骤提供故事面板", () => {
   const source = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
   assert.deepEqual(rewriteDemo.referenceAssets.map((item) => item.sourceId), ["product-bottle", "product-detail"]);
   assert.match(source, /accept="image\/\*"/);
   assert.match(source, /素材已删除/);
+  assert.match(source, />仿写需求 <small>/);
+  assert.match(source, /title="原片仿写结果"/);
   assert.match(source, /editLabel="编辑原片仿写故事面板"/);
 });
 
@@ -191,7 +204,7 @@ test("工作流具备任务失效、独立生成、重提取和实时片段弹�
   const source = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
   assert.match(source, /operationEpoch/);
   assert.match(source, /生成仿写结果/);
-  assert.match(source, /重新生成故事面板/);
+  assert.match(source, /重新生成仿写结果/);
   assert.match(source, /重新提取片段/);
   assert.match(source, /type: "segment"/);
   assert.match(source, /重新选择原视频/);
