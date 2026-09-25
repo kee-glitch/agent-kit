@@ -123,12 +123,12 @@ test("原片仿写阶段提供两个引用素材、需求和可编辑故事面�
   assert.match(source, /editLabel="编辑原片仿写故事面板"/);
 });
 
-test("提取片段提供选择、全选、详情和编辑", () => {
+test("提取片段提供选择、全选和只读详情", () => {
   const source = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
   assert.match(source, /aria-pressed=\{segment\.selected\}/);
   assert.match(source, /全选/);
   assert.match(source, /aria-label={`查看\$\{label\}完整内容`}/);
-  assert.match(source, /editLabel="编辑片段故事面板"/);
+  assert.match(source, /content: <AssetMarkdown value=\{activeSegment\.document\}/);
 });
 
 test("重绘和视频阶段提供单段批量生成及原生播放", () => {
@@ -247,9 +247,30 @@ test("原片仿写弹窗复用元素替换的遮罩和弹窗结构", () => {
   const source = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
   const styles = readFileSync(new URL("./original-rewrite.css", import.meta.url), "utf8");
   assert.match(source, /className="remake-modal"/);
-  assert.match(source, /className="remake-segment-modal"/);
+  assert.match(source, /className={`remake-segment-modal/);
   assert.match(source, /className="remake-modal-body"/);
   assert.match(source, /className="remake-modal-footer"/);
   assert.match(source, /className="remake-modal-close"/);
   assert.doesNotMatch(styles, /\.rewrite-modal(?:-card|-body)?\{/);
+});
+
+test("提取片段隐藏业务标题并展示时长和镜头范围", () => {
+  const source = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
+  assert.match(source, /segment\.time} · \{segment\.duration} · \{segment\.shots/);
+  assert.doesNotMatch(source, /segment\.shotCount} 个镜头 · \{segment\.title/);
+  assert.deepEqual(
+    rewriteSegments.map(({ duration, shots }) => [duration, shots]),
+    [["15s", "镜头 1–4"], ["15s", "镜头 5–8"], ["15s", "镜头 9–12"], ["14s", "镜头 13–16"]],
+  );
+});
+
+test("片段详情弹窗使用宽幅只读故事面板和完整参数", () => {
+  const source = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
+  const styles = readFileSync(new URL("./original-rewrite.css", import.meta.url), "utf8");
+  assert.match(source, /className=\{modal\.segment \? "rewrite-segment-modal-heading" : undefined\}/);
+  assert.match(source, /片段 \{String\(modal\.segment\.number\)\.padStart\(2, "0"\)}/);
+  assert.match(source, /modal\.segment\.time} · \{modal\.segment\.duration} · \{modal\.segment\.shots/);
+  assert.match(source, /content: <AssetMarkdown value=\{activeSegment\.document\} assets=\{referenceAssets\} \/>/);
+  assert.doesNotMatch(source, /title={`\$\{activeSegment\.title\}故事面板`}/);
+  assert.match(styles, /\.remake-segment-modal\.rewrite-segment-modal\{width:min\(1600px,100%\)\}/);
 });

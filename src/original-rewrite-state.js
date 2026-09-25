@@ -16,6 +16,8 @@ const cleanSegment = (segment, fallback = {}) => ({
   number: cleanNumber(segment.number, fallback.number),
   title: cleanString(segment.title, fallback.title),
   time: cleanString(segment.time, fallback.time),
+  duration: cleanString(segment.duration, fallback.duration),
+  shots: cleanString(segment.shots, fallback.shots),
   shotCount: cleanNumber(segment.shotCount, fallback.shotCount),
   document: cleanString(segment.document, fallback.document || ""),
   redrawPath: cleanString(segment.redrawPath, fallback.redrawPath),
