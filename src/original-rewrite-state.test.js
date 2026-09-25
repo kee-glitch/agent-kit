@@ -247,8 +247,7 @@ test("原片仿写弹窗复用元素替换的遮罩和弹窗结构", () => {
   const source = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
   const styles = readFileSync(new URL("./original-rewrite.css", import.meta.url), "utf8");
   assert.match(source, /className="remake-modal"/);
-  assert.match(source, /className={`remake-segment-modal/);
-  assert.match(source, /className="remake-modal-body"/);
+  assert.match(source, /modal\.segment \? "remake-markdown-modal" : "remake-segment-modal"/);
   assert.match(source, /className="remake-modal-footer"/);
   assert.match(source, /className="remake-modal-close"/);
   assert.doesNotMatch(styles, /\.rewrite-modal(?:-card|-body)?\{/);
@@ -267,17 +266,18 @@ test("提取片段隐藏业务标题并展示时长和镜头范围", () => {
 test("片段详情弹窗使用宽幅只读故事面板和完整参数", () => {
   const source = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
   const styles = readFileSync(new URL("./original-rewrite.css", import.meta.url), "utf8");
-  assert.match(source, /className=\{modal\.segment \? "rewrite-segment-modal-heading" : undefined\}/);
+  assert.match(source, /className=\{modal\.segment \? "remake-segment-modal-header" : undefined\}/);
   assert.match(source, /片段 \{String\(modal\.segment\.number\)\.padStart\(2, "0"\)}/);
   assert.match(source, /modal\.segment\.time} · \{modal\.segment\.duration} · \{modal\.segment\.shots/);
   assert.match(source, /content: <AssetMarkdown value=\{activeSegment\.document\} assets=\{referenceAssets\} \/>/);
   assert.doesNotMatch(source, /title={`\$\{activeSegment\.title\}故事面板`}/);
-  assert.match(styles, /\.remake-segment-modal\.rewrite-segment-modal\{width:min\(1600px,100%\)\}/);
+  assert.doesNotMatch(styles, /rewrite-segment-modal/);
 });
 
 test("片段详情复用元素替换的 Markdown 阅读布局", () => {
   const source = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
   const styles = readFileSync(new URL("./original-rewrite.css", import.meta.url), "utf8");
-  assert.match(source, /rewrite-segment-modal remake-markdown-modal/);
-  assert.doesNotMatch(styles, /rewrite-segment-modal>\.remake-modal-body>\.remake-markdown-body/);
+  assert.match(source, /modal\.segment \? modal\.content : <div className="remake-modal-body">\{modal\.content\}<\/div>/);
+  assert.doesNotMatch(source, /rewrite-segment-modal/);
+  assert.doesNotMatch(styles, /rewrite-segment-modal/);
 });
