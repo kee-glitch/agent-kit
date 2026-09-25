@@ -137,11 +137,20 @@ test("上传和原片仿写阶段提供媒体、Demo、拆解内容与大图预�
   assert.match(source, /accept="video\/mp4,video\/quicktime,\.mp4,\.mov"/);
   assert.match(source, /aria-label="上传原视频"/);
   assert.match(source, /加载 Demo/);
-  assert.match(source, /重新拆解/);
+  assert.match(source, /重新生成/);
   assert.match(source, /aria-label="查看逐秒拆解大图"/);
   assert.match(source, /className="rewrite-compose-grid"/);
   assert.match(source, /title="视频拆解与复刻框架"/);
   assert.match(source, /原视频逐秒分镜/);
+});
+
+test("拆解框架沿用元素替换的摘要阅读与重新生成功能", () => {
+  const source = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
+  assert.match(source, /meta="视频拆解prompt\.md · 已识别 9 个叙事镜头"/);
+  assert.match(source, /点击阅读完整内容/);
+  assert.match(source, /aria-label=\{`阅读完整\$\{title\}`\}/);
+  assert.match(source, /title: "视频拆解与复刻框架"/);
+  assert.match(source, /onRegenerate=/);
 });
 
 test("原片仿写阶段提供两个引用素材和仿写需求，结果步骤提供故事面板", () => {
@@ -278,7 +287,7 @@ test("原片仿写弹窗复用元素替换的遮罩和弹窗结构", () => {
   const source = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
   const styles = readFileSync(new URL("./original-rewrite.css", import.meta.url), "utf8");
   assert.match(source, /className="remake-modal"/);
-  assert.match(source, /modal\.segment \? "remake-markdown-modal" : "remake-segment-modal"/);
+  assert.match(source, /modal\.segment \|\| modal\.markdown \? "remake-markdown-modal" : "remake-segment-modal"/);
   assert.match(source, /className="remake-modal-footer"/);
   assert.match(source, /className="remake-modal-close"/);
   assert.doesNotMatch(styles, /\.rewrite-modal(?:-card|-body)?\{/);
