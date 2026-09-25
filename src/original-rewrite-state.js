@@ -5,9 +5,20 @@ export const REWRITE_STORAGE_KEY = "shulan.original-rewrite.project.v1";
 export const REWRITE_MODELS = ["seedance 2.0 mini", "seedance 2.0 fast", "seedance 2.0", "seedance 2.5"];
 
 const EMPTY_DOCUMENTS = { breakdown: "", rewrite: "" };
-const EMPTY_PROJECT = { step: 1, maxStep: 1, videoName: "", videoPath: "", model: "seedance 2.0", aspectRatio: "9:16", request: "", references: [], documents: EMPTY_DOCUMENTS, segments: [], savedAt: "" };
+const EMPTY_PROJECT = { step: 1, maxStep: 1, videoName: "", videoPath: "", model: "seedance 2.0", aspectRatio: "9:16", request: "", references: [], referenceCounters: { image: 2, audio: 0, video: 0 }, documents: EMPTY_DOCUMENTS, segments: [], savedAt: "" };
 const validStatus = (status) => status === "done" || status === "idle" ? status : "idle";
-const cleanAsset = (asset) => ({ id: String(asset.id || asset.sourceId || asset.role), sourceId: String(asset.sourceId || ""), role: String(asset.role || ""), name: String(asset.name || ""), ...(typeof asset.path === "string" ? { path: asset.path } : {}), ...(typeof asset.preview === "string" ? { preview: asset.preview } : {}) });
+const validMediaType = (type) => ["image", "audio", "video"].includes(type) ? type : "image";
+const mediaLabels = { image: "图片", audio: "音频", video: "视频" };
+const cleanAsset = (asset) => ({ id: String(asset.id || asset.sourceId || asset.role), sourceId: String(asset.sourceId || ""), role: String(asset.role || ""), type: validMediaType(asset.type), name: String(asset.name || ""), ...(typeof asset.path === "string" ? { path: asset.path } : {}), ...(typeof asset.preview === "string" ? { preview: asset.preview } : {}) });
+const referenceCounters = (assets, saved = {}) => {
+  const counters = { image: 2, audio: 0, video: 0, ...saved };
+  assets.forEach((asset) => {
+    const type = validMediaType(asset.type);
+    const match = asset.role.match(new RegExp(`^${mediaLabels[type]}(\\d+)$`));
+    if (match) counters[type] = Math.max(counters[type], Number(match[1]));
+  });
+  return counters;
+};
 const cleanString = (value, fallback = "") => typeof value === "string" ? value : fallback;
 const cleanNumber = (value, fallback = 0) => Number.isFinite(value) ? value : fallback;
 const cleanSegment = (segment, fallback = {}) => ({
@@ -36,6 +47,7 @@ export function createRewriteProject(saved = {}) {
   const savedStep = Number.isInteger(value.step) && value.step >= 1 && value.step <= maxStep ? value.step : 1;
   const hasMissingLocalVideo = typeof value.videoName === "string" && value.videoName && !(typeof value.videoPath === "string" && value.videoPath && !value.videoPath.startsWith("blob:"));
   const step = hasMissingLocalVideo ? 1 : savedStep;
+  const references = Array.isArray(value.references) ? value.references.filter((item) => item && typeof item === "object").map(cleanAsset) : [];
   return {
     ...EMPTY_PROJECT,
     step,
@@ -45,7 +57,8 @@ export function createRewriteProject(saved = {}) {
     model: REWRITE_MODELS.includes(value.model) ? value.model : EMPTY_PROJECT.model,
     aspectRatio: ASPECT_RATIOS.includes(value.aspectRatio) ? value.aspectRatio : EMPTY_PROJECT.aspectRatio,
     request: typeof value.request === "string" ? value.request : "",
-    references: Array.isArray(value.references) ? value.references.filter((item) => item && typeof item === "object").map(cleanAsset) : [],
+    references,
+    referenceCounters: referenceCounters(references, value.referenceCounters),
     documents: { breakdown: typeof value.documents?.breakdown === "string" ? value.documents.breakdown : "", rewrite: typeof value.documents?.rewrite === "string" ? value.documents.rewrite : "" },
     segments: rawSegments.filter((item) => item && typeof item === "object" && /^segment-[1-4]$/.test(item.id || "")).map((item) => cleanSegment(item, rewriteSegments.find((candidate) => candidate.id === item.id))),
     savedAt: typeof value.savedAt === "string" ? value.savedAt : "",
@@ -53,7 +66,8 @@ export function createRewriteProject(saved = {}) {
 }
 
 export function loadRewriteDemo(project) {
-  return { ...project, videoName: rewriteDemo.videoName, videoPath: rewriteDemo.videoPath, request: rewriteDemo.request, references: rewriteDemo.referenceAssets.map(cleanAsset), documents: { breakdown: rewriteDemo.breakdown, rewrite: rewriteDemo.rewriteDocument }, segments: rewriteSegments.map((item) => cleanSegment(item, item)) };
+  const references = rewriteDemo.referenceAssets.map(cleanAsset);
+  return { ...project, videoName: rewriteDemo.videoName, videoPath: rewriteDemo.videoPath, request: rewriteDemo.request, references, referenceCounters: referenceCounters(references), documents: { breakdown: rewriteDemo.breakdown, rewrite: rewriteDemo.rewriteDocument }, segments: rewriteSegments.map((item) => cleanSegment(item, item)) };
 }
 
 export function replaceRewriteVideo(project, video = {}) {
@@ -74,6 +88,25 @@ export function advanceRewriteStep(project) { if (!canAdvanceRewrite(project)) r
 export function updateRewriteDocument(project, key, value) { return { ...project, documents: { ...project.documents, [key]: value } }; }
 export function upsertRewriteReference(project, asset) { return { ...project, references: [...project.references.filter((item) => item.sourceId !== asset.sourceId), cleanAsset(asset)] }; }
 export function removeRewriteReference(project, sourceId) { return { ...project, references: project.references.filter((item) => item.sourceId !== sourceId) }; }
+export function addRewriteReferences(project, additions) {
+  const counters = referenceCounters(project.references, project.referenceCounters);
+  const references = [...project.references];
+  additions.forEach((addition) => {
+    const type = validMediaType(addition.type);
+    counters[type] += 1;
+    references.push(cleanAsset({ ...addition, type, role: `${mediaLabels[type]}${counters[type]}` }));
+  });
+  return { ...project, references, referenceCounters: counters };
+}
+export function replaceRewriteReference(project, id, patch) {
+  const current = project.references.find((asset) => asset.id === id);
+  if (!current) return project;
+  const type = validMediaType(patch.type || current.type);
+  const counters = referenceCounters(project.references, project.referenceCounters);
+  const role = type === current.type ? current.role : `${mediaLabels[type]}${++counters[type]}`;
+  return { ...project, referenceCounters: counters, references: project.references.map((asset) => asset.id === id ? cleanAsset({ ...asset, ...patch, type, role }) : asset) };
+}
+export function removeRewriteAsset(project, id) { return { ...project, references: project.references.filter((asset) => asset.id !== id) }; }
 export function updateRewriteSegmentDocument(project, id, document) { return { ...project, segments: project.segments.map((item) => item.id === id ? { ...item, document } : item) }; }
 export function toggleRewriteSelection(project, id) { return { ...project, segments: project.segments.map((item) => item.id === id ? { ...item, selected: !item.selected } : item) }; }
 export function toggleAllRewriteSelections(project) { const all = project.segments.length > 0 && project.segments.every((item) => item.selected); return { ...project, segments: project.segments.map((item) => ({ ...item, selected: !all })) }; }

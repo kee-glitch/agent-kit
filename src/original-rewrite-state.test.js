@@ -8,12 +8,15 @@ import {
 } from "./original-rewrite-data.js";
 import {
   REWRITE_STORAGE_KEY,
+  addRewriteReferences,
   advanceRewriteStep,
   clearRewriteRunningStatuses,
   createRewriteProject,
   loadRewriteDemo,
   persistRewriteProject,
   queueRewriteJobs,
+  removeRewriteAsset,
+  replaceRewriteReference,
   replaceRewriteVideo,
   setRewriteJobStatus,
 } from "./original-rewrite-state.js";
@@ -69,6 +72,21 @@ test("替换原视频清空下游结果但保留模型和画幅", () => {
   assert.equal(result.aspectRatio, "1:1");
   assert.equal(result.documents.breakdown, "");
   assert.equal(result.segments.length, 0);
+});
+
+test("原片仿写支持新增、替换和独立删除其他素材", () => {
+  const base = loadRewriteDemo(createRewriteProject());
+  const added = addRewriteReferences(base, [
+    { id: "extra-image", type: "image", name: "extra.png", preview: "data:image/png;base64,x" },
+    { id: "extra-audio", type: "audio", name: "voice.mp3", preview: "data:audio/mp3;base64,x" },
+  ]);
+  assert.deepEqual(added.references.slice(-2).map((asset) => asset.role), ["图片3", "音频1"]);
+  const replaced = replaceRewriteReference(added, "extra-image", { type: "video", name: "clip.mp4", preview: "data:video/mp4;base64,x" });
+  assert.equal(replaced.references.find((asset) => asset.id === "extra-image").role, "视频1");
+  assert.equal(replaced.references.find((asset) => asset.id === "extra-image").name, "clip.mp4");
+  const removed = removeRewriteAsset(replaced, "extra-image");
+  assert.equal(removed.references.some((asset) => asset.id === "extra-image"), false);
+  assert.equal(removed.references.some((asset) => asset.id === "extra-audio"), true);
 });
 
 test("全部重绘完成后才可进入生成视频", () => {
@@ -280,4 +298,15 @@ test("片段详情复用元素替换的 Markdown 阅读布局", () => {
   assert.match(source, /modal\.segment \? modal\.content : <div className="remake-modal-body">\{modal\.content\}<\/div>/);
   assert.doesNotMatch(source, /rewrite-segment-modal/);
   assert.doesNotMatch(styles, /rewrite-segment-modal/);
+});
+
+test("原片仿写素材区提供替换资源和新增其他素材", () => {
+  const source = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
+  assert.match(source, /替换资源/);
+  assert.match(source, /新增其他素材/);
+  assert.match(source, /accept=\{GENERAL_ASSET_ACCEPT\}/);
+  assert.match(source, /multiple/);
+  assert.match(source, /className="remake-other-asset"/);
+  assert.match(source, /className="remake-asset-row"/);
+  assert.match(source, /project\.references\.filter\(\(asset\) => !asset\.sourceId\)/);
 });
