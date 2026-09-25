@@ -274,3 +274,10 @@ test("片段详情弹窗使用宽幅只读故事面板和完整参数", () => {
   assert.doesNotMatch(source, /title={`\$\{activeSegment\.title\}故事面板`}/);
   assert.match(styles, /\.remake-segment-modal\.rewrite-segment-modal\{width:min\(1600px,100%\)\}/);
 });
+
+test("片段详情复用元素替换的 Markdown 阅读布局", () => {
+  const source = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
+  const styles = readFileSync(new URL("./original-rewrite.css", import.meta.url), "utf8");
+  assert.match(source, /rewrite-segment-modal remake-markdown-modal/);
+  assert.doesNotMatch(styles, /rewrite-segment-modal>\.remake-modal-body>\.remake-markdown-body/);
+});
