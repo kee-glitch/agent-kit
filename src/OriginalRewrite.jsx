@@ -30,7 +30,7 @@ function RewriteModal({ modal, onClose }) {
     return () => { document.removeEventListener("keydown", keydown); document.body.style.overflow = ""; previous?.focus?.(); };
   }, [modal, onClose]);
   if (!modal) return null;
-  return <div className="rewrite-modal" role="dialog" aria-modal="true" aria-label={modal.title} onMouseDown={(event) => isBackdropSelfClick(event.target, event.currentTarget) && onClose()}><div ref={cardRef} className="rewrite-modal-card"><header><h2>{modal.title}</h2><small>{modal.subtitle}</small></header><div className="rewrite-modal-body">{modal.content}</div><footer><button ref={closeRef} onClick={onClose}>关闭</button></footer></div></div>;
+  return <div className="remake-modal" role="dialog" aria-modal="true" aria-label={modal.title} onMouseDown={(event) => isBackdropSelfClick(event.target, event.currentTarget) && onClose()}><div ref={cardRef} className="remake-segment-modal"><header><h2>{modal.title}</h2>{modal.subtitle && <p>{modal.subtitle}</p>}</header><div className="remake-modal-body">{modal.content}</div><footer className="remake-modal-footer"><button ref={closeRef} className="remake-modal-close" onClick={onClose}>关闭</button></footer></div></div>;
 }
 
 const StageHeading = ({ step, title, description, action }) => <header className="rewrite-stage-heading"><div><span className="remake-kicker">STEP {String(step).padStart(2, "0")}</span><h1>{title}</h1><p>{description}</p></div>{action}</header>;

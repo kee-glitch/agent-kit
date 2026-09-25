@@ -242,3 +242,14 @@ test("提取片段使用元素替换的单列故事面板卡片", () => {
   assert.match(source, /<AssetMarkdown value=\{segment\.document\} assets=\{assets\}/);
   assert.match(styles, /\.rewrite-segment-list\{display:grid;gap:var\(--space-5\)\}/);
 });
+
+test("原片仿写弹窗复用元素替换的遮罩和弹窗结构", () => {
+  const source = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
+  const styles = readFileSync(new URL("./original-rewrite.css", import.meta.url), "utf8");
+  assert.match(source, /className="remake-modal"/);
+  assert.match(source, /className="remake-segment-modal"/);
+  assert.match(source, /className="remake-modal-body"/);
+  assert.match(source, /className="remake-modal-footer"/);
+  assert.match(source, /className="remake-modal-close"/);
+  assert.doesNotMatch(styles, /\.rewrite-modal(?:-card|-body)?\{/);
+});
