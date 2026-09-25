@@ -127,7 +127,7 @@ test("提取片段提供选择、全选、详情和编辑", () => {
   const source = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
   assert.match(source, /aria-pressed=\{segment\.selected\}/);
   assert.match(source, /全选/);
-  assert.match(source, /查看完整故事面板/);
+  assert.match(source, /aria-label={`查看\$\{label\}完整内容`}/);
   assert.match(source, /editLabel="编辑片段故事面板"/);
 });
 
@@ -230,4 +230,15 @@ test("原片仿写复用带缩略图的资源引用并提供未生成状态", ()
   assert.match(rewrite, /<AssetMarkdown/);
   assert.match(viral, /import \{ AssetMarkdown, MentionEditor \} from "\.\/AssetMentions"/);
   assert.match(styles, /\.rewrite-steps button:hover\{background:transparent\}/);
+});
+
+test("提取片段使用元素替换的单列故事面板卡片", () => {
+  const source = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
+  const styles = readFileSync(new URL("./original-rewrite.css", import.meta.url), "utf8");
+  assert.match(source, /className={`remake-segment-card\$\{segment\.selected \? " selected" : ""\}`}/);
+  assert.match(source, /className="remake-segment-preview"/);
+  assert.match(source, /故事面板已就绪/);
+  assert.match(source, /More <Maximize2/);
+  assert.match(source, /<AssetMarkdown value=\{segment\.document\} assets=\{assets\}/);
+  assert.match(styles, /\.rewrite-segment-list\{display:grid;gap:var\(--space-5\)\}/);
 });
