@@ -88,7 +88,7 @@ test("原片仿写支持新增、替换和独立删除其他素材", () => {
     { id: "extra-image", type: "image", name: "extra.png", preview: "data:image/png;base64,x" },
     { id: "extra-audio", type: "audio", name: "voice.mp3", preview: "data:audio/mp3;base64,x" },
   ]);
-  assert.deepEqual(added.references.slice(-2).map((asset) => asset.role), ["图片3", "音频1"]);
+  assert.deepEqual(added.references.slice(-2).map((asset) => asset.role), ["图片4", "音频1"]);
   const replaced = replaceRewriteReference(added, "extra-image", { type: "video", name: "clip.mp4", preview: "data:video/mp4;base64,x" });
   assert.equal(replaced.references.find((asset) => asset.id === "extra-image").role, "视频1");
   assert.equal(replaced.references.find((asset) => asset.id === "extra-image").name, "clip.mp4");
@@ -160,9 +160,9 @@ test("原视频逐秒分镜预览保持一比一比例且大图不受裁切", ()
   assert.doesNotMatch(styles, /\.remake-modal-body>img\{[^}]*aspect-ratio:1\/1/);
 });
 
-test("原片仿写阶段提供两个引用素材和仿写需求，结果步骤提供故事面板", () => {
+test("原片仿写阶段提供三个引用素材和仿写需求，结果步骤提供故事面板", () => {
   const source = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
-  assert.deepEqual(rewriteDemo.referenceAssets.map((item) => item.sourceId), ["product-bottle", "product-detail"]);
+  assert.deepEqual(rewriteDemo.referenceAssets.map((item) => item.sourceId), ["product-bottle", "product-detail", "storyboard-style"]);
   assert.match(source, /accept="image\/\*"/);
   assert.match(source, /素材已删除/);
   assert.match(source, />仿写需求 <small>/);
@@ -336,17 +336,32 @@ test("原片仿写遮罩弹窗对齐主内容区", () => {
   assert.match(styles, /@media\(max-width:720px\)\{\.rewrite-modal-layer\{padding:var\(--space-4\)\}\}/);
 });
 
-test("逐秒重绘使用单列参数列表展示片段时长和引用资源", () => {
+test("逐秒重绘使用单列参数列表展示片段时长和参考资源", () => {
   const source = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
   const styles = readFileSync(new URL("./original-rewrite.css", import.meta.url), "utf8");
   assert.match(source, /className="rewrite-redraw-list"/);
   assert.match(source, /<dt>片段<\/dt>/);
   assert.match(source, /<dt>时长<\/dt>/);
-  assert.match(source, /<dt>引用资源<\/dt>/);
-  assert.match(source, /segment\.document\.includes\(`@\$\{asset\.role\}`\)/);
-  assert.match(source, /<AssetMention key=\{asset\.id\} asset=\{asset\} reference=\{asset\.role\} \/>/);
+  assert.match(source, /<dt>参考资源<\/dt>/);
+  assert.match(source, /assets\.map\(\(asset\) =>/);
+  assert.match(source, /<AssetMention asset=\{asset\} reference=\{asset\.role\} \/>/);
   assert.match(styles, /\.rewrite-redraw-list\{display:grid;grid-template-columns:1fr/);
   assert.doesNotMatch(styles, /\.rewrite-output-grid,.rewrite-video-grid\{display:grid;grid-template-columns:1fr 1fr/);
+});
+
+test("逐秒重绘统一展示三项命名参考资源且隐藏片段标题", () => {
+  const source = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
+  assert.equal(createRewriteProject().referenceCounters.image, 3);
+  assert.equal(rewriteDemo.referenceAssets.length, 3);
+  assert.deepEqual(rewriteDemo.referenceAssets.map((asset) => [asset.role, asset.label]), [
+    ["图片1", "WindBoss Cortisol Health瓶装产品"],
+    ["图片2", "WindBoss琥珀色软胶囊"],
+    ["图片3", "分镜风格参考"],
+  ]);
+  assert.match(source, /<dt>参考资源<\/dt>/);
+  assert.match(source, /assets\.map\(\(asset\) => <span className="rewrite-redraw-reference"/);
+  assert.match(source, /asset\.label \|\| rewriteReferences\.find/);
+  assert.doesNotMatch(source, /<small>\{segment\.title\}<\/small>/);
 });
 
 test("提取片段隐藏业务标题并展示时长和镜头范围", () => {

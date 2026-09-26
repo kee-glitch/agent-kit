@@ -5,13 +5,13 @@ export const REWRITE_STORAGE_KEY = "shulan.original-rewrite.project.v1";
 export const REWRITE_MODELS = ["seedance 2.0 mini", "seedance 2.0 fast", "seedance 2.0", "seedance 2.5"];
 
 const EMPTY_DOCUMENTS = { breakdown: "", rewrite: "" };
-const EMPTY_PROJECT = { step: 1, maxStep: 1, videoName: "", videoPath: "", model: "seedance 2.0", aspectRatio: "9:16", request: "", references: [], referenceCounters: { image: 2, audio: 0, video: 0 }, documents: EMPTY_DOCUMENTS, segments: [], savedAt: "" };
+const EMPTY_PROJECT = { step: 1, maxStep: 1, videoName: "", videoPath: "", model: "seedance 2.0", aspectRatio: "9:16", request: "", references: [], referenceCounters: { image: 3, audio: 0, video: 0 }, documents: EMPTY_DOCUMENTS, segments: [], savedAt: "" };
 const validStatus = (status) => status === "done" || status === "idle" ? status : "idle";
 const validMediaType = (type) => ["image", "audio", "video"].includes(type) ? type : "image";
 const mediaLabels = { image: "图片", audio: "音频", video: "视频" };
 const cleanAsset = (asset) => ({ id: String(asset.id || asset.sourceId || asset.role), sourceId: String(asset.sourceId || ""), role: String(asset.role || ""), type: validMediaType(asset.type), name: String(asset.name || ""), ...(typeof asset.path === "string" ? { path: asset.path } : {}), ...(typeof asset.preview === "string" ? { preview: asset.preview } : {}) });
 const referenceCounters = (assets, saved = {}) => {
-  const counters = { image: 2, audio: 0, video: 0, ...saved };
+  const counters = { image: 3, audio: 0, video: 0, ...saved };
   assets.forEach((asset) => {
     const type = validMediaType(asset.type);
     const match = asset.role.match(new RegExp(`^${mediaLabels[type]}(\\d+)$`));
