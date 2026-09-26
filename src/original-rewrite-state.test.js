@@ -321,6 +321,11 @@ test("逐秒重绘大图使用统一的大图弹窗", () => {
   assert.match(source, /title: `\$\{segment\.title\}重绘分镜`, image: true/);
 });
 
+test("原片仿写所有遮罩弹窗统一最大宽度", () => {
+  const styles = readFileSync(new URL("./original-rewrite.css", import.meta.url), "utf8");
+  assert.match(styles, /\.original-rewrite :is\(\.remake-image-viewer,\.remake-segment-modal,\.remake-video-modal,\.remake-markdown-modal\)\{width:min\(1320px,100%\)\}/);
+});
+
 test("提取片段隐藏业务标题并展示时长和镜头范围", () => {
   const source = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
   assert.match(source, /segment\.time} · \{segment\.duration} · \{segment\.shots/);

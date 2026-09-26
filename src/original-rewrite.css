@@ -4,6 +4,7 @@
 .original-rewrite button:disabled{border-color:var(--color-border-default);background:var(--color-bg-subtle);color:var(--color-text-disabled);cursor:not-allowed;opacity:1}
 .original-rewrite button:focus-visible{outline:2px solid var(--color-border-focus);outline-offset:2px}
 .original-rewrite button svg{width:16px;height:16px}
+.original-rewrite :is(.remake-image-viewer,.remake-segment-modal,.remake-video-modal,.remake-markdown-modal){width:min(1320px,100%)}
 @media(hover:hover){.original-rewrite :where(button:not(:disabled):not(.rewrite-segment-select):not(.rewrite-output-media):not(.rewrite-storyboard-card button)):hover{border-color:var(--color-text-secondary);background:var(--color-bg-subtle-alt)}.original-rewrite button.primary:not(:disabled):hover{border-color:var(--color-bg-inverse);background:var(--color-text-primary)}}
 .rewrite-project-header{display:flex;min-height:72px;align-items:center;justify-content:space-between;padding:0 var(--space-8);border-bottom:1px solid var(--color-border-subtle);background:var(--color-bg-surface)}
 .rewrite-project-header>div{display:flex;align-items:center;gap:var(--space-4)}
