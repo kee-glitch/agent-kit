@@ -293,7 +293,7 @@ test("提取片段使用元素替换的单列故事面板卡片", () => {
 test("原片仿写弹窗复用元素替换的遮罩和弹窗结构", () => {
   const source = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
   const styles = readFileSync(new URL("./original-rewrite.css", import.meta.url), "utf8");
-  assert.match(source, /className="remake-modal"/);
+  assert.match(source, /className="remake-modal rewrite-modal-layer"/);
   assert.match(source, /modal\.segment \|\| modal\.markdown \? "remake-markdown-modal" : "remake-segment-modal"/);
   assert.match(source, /className="remake-modal-footer"/);
   assert.match(source, /className="remake-modal-close"/);
@@ -322,8 +322,18 @@ test("逐秒重绘大图使用统一的大图弹窗", () => {
 });
 
 test("原片仿写所有遮罩弹窗统一最大宽度", () => {
+  const source = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
   const styles = readFileSync(new URL("./original-rewrite.css", import.meta.url), "utf8");
-  assert.match(styles, /\.original-rewrite :is\(\.remake-image-viewer,\.remake-segment-modal,\.remake-video-modal,\.remake-markdown-modal\)\{width:min\(1320px,100%\)\}/);
+  assert.match(source, /className="remake-modal rewrite-modal-layer"/);
+  assert.match(styles, /\.rewrite-modal-layer :is\(\.remake-image-viewer,\.remake-segment-modal,\.remake-video-modal,\.remake-markdown-modal\)\{width:min\(1320px,100%\)\}/);
+});
+
+test("原片仿写遮罩弹窗对齐主内容区", () => {
+  const source = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
+  const styles = readFileSync(new URL("./original-rewrite.css", import.meta.url), "utf8");
+  assert.doesNotMatch(source, /createPortal/);
+  assert.match(styles, /\.rewrite-modal-layer\{padding-left:116px;padding-right:40px\}/);
+  assert.match(styles, /@media\(max-width:720px\)\{\.rewrite-modal-layer\{padding:var\(--space-4\)\}\}/);
 });
 
 test("提取片段隐藏业务标题并展示时长和镜头范围", () => {
