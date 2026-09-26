@@ -309,6 +309,18 @@ test("逐秒分镜大图弹窗复用元素替换的最大宽度", () => {
   assert.match(sharedStyles, /\.remake-markdown-modal \{[\s\S]*?width: min\(1320px,/);
 });
 
+test("原片仿写六个步骤使用统一的页面宽度", () => {
+  const styles = readFileSync(new URL("./original-rewrite.css", import.meta.url), "utf8");
+  assert.match(styles, /\.rewrite-steps\{[^}]*width:min\(1320px,100%\)/);
+  assert.match(styles, /\.rewrite-stage\{[^}]*width:min\(1320px,calc\(100% - 48px\)\)/);
+  assert.doesNotMatch(styles, /\.rewrite-compose-stage\{[^}]*width:/);
+});
+
+test("逐秒重绘大图使用统一的大图弹窗", () => {
+  const source = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
+  assert.match(source, /title: `\$\{segment\.title\}重绘分镜`, image: true/);
+});
+
 test("提取片段隐藏业务标题并展示时长和镜头范围", () => {
   const source = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
   assert.match(source, /segment\.time} · \{segment\.duration} · \{segment\.shots/);
