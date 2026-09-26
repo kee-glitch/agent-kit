@@ -336,6 +336,19 @@ test("原片仿写遮罩弹窗对齐主内容区", () => {
   assert.match(styles, /@media\(max-width:720px\)\{\.rewrite-modal-layer\{padding:var\(--space-4\)\}\}/);
 });
 
+test("逐秒重绘使用单列参数列表展示片段时长和引用资源", () => {
+  const source = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
+  const styles = readFileSync(new URL("./original-rewrite.css", import.meta.url), "utf8");
+  assert.match(source, /className="rewrite-redraw-list"/);
+  assert.match(source, /<dt>片段<\/dt>/);
+  assert.match(source, /<dt>时长<\/dt>/);
+  assert.match(source, /<dt>引用资源<\/dt>/);
+  assert.match(source, /segment\.document\.includes\(`@\$\{asset\.role\}`\)/);
+  assert.match(source, /<AssetMention key=\{asset\.id\} asset=\{asset\} reference=\{asset\.role\} \/>/);
+  assert.match(styles, /\.rewrite-redraw-list\{display:grid;grid-template-columns:1fr/);
+  assert.doesNotMatch(styles, /\.rewrite-output-grid,.rewrite-video-grid\{display:grid;grid-template-columns:1fr 1fr/);
+});
+
 test("提取片段隐藏业务标题并展示时长和镜头范围", () => {
   const source = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
   assert.match(source, /segment\.time} · \{segment\.duration} · \{segment\.shots/);

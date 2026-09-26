@@ -151,7 +151,7 @@ function remarkAssetMentions() {
   };
 }
 
-function AssetMention({ asset, reference }) {
+export function AssetMention({ asset, reference }) {
   return <span className={`remake-mention-token${asset ? "" : " missing"}`} data-reference={`@${reference}`} title={asset?.name || "素材已删除"} aria-label={asset ? `@${reference}，${asset.name}` : `@${reference}，素材已删除`}><MentionThumb asset={asset} />@{reference}</span>;
 }
 
