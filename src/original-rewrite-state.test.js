@@ -364,6 +364,16 @@ test("逐秒重绘统一展示三项命名参考资源且隐藏片段标题", ()
   assert.doesNotMatch(source, /<small>\{segment\.title\}<\/small>/);
 });
 
+test("逐秒重绘使用紧凑列表和生成按钮三态文案", () => {
+  const source = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
+  const styles = readFileSync(new URL("./original-rewrite.css", import.meta.url), "utf8");
+  assert.match(source, /segment\.redrawStatus === "running" \? "生成中" : segment\.redrawStatus === "done" \? "重新生成" : "生成"/);
+  assert.match(source, /segment\.redrawStatus === "running" \? <LoaderCircle className="spin" \/> : <RefreshCw \/>/);
+  assert.match(styles, /\.rewrite-redraw-row\{[^}]*grid-template-columns:96px minmax\(0,1fr\) auto/);
+  assert.match(styles, /\.rewrite-output-media\{[^}]*width:96px;height:96px/);
+  assert.match(styles, /\.rewrite-redraw-params\{[^}]*padding:var\(--space-4\)/);
+});
+
 test("提取片段隐藏业务标题并展示时长和镜头范围", () => {
   const source = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
   assert.match(source, /segment\.time} · \{segment\.duration} · \{segment\.shots/);
