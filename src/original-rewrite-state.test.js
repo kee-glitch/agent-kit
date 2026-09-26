@@ -300,6 +300,15 @@ test("原片仿写弹窗复用元素替换的遮罩和弹窗结构", () => {
   assert.doesNotMatch(styles, /\.rewrite-modal(?:-card|-body)?\{/);
 });
 
+test("逐秒分镜大图弹窗复用元素替换的最大宽度", () => {
+  const source = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
+  const sharedStyles = readFileSync(new URL("./viral-remake.css", import.meta.url), "utf8");
+  assert.match(source, /modal\.image \? "remake-image-viewer"/);
+  assert.match(source, /title: "逐秒拆解分镜", image: true/);
+  assert.match(sharedStyles, /\.remake-image-viewer,[\s\S]*?width: min\(1100px, 100%\)/);
+  assert.match(sharedStyles, /\.remake-markdown-modal \{[\s\S]*?width: min\(1320px,/);
+});
+
 test("提取片段隐藏业务标题并展示时长和镜头范围", () => {
   const source = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
   assert.match(source, /segment\.time} · \{segment\.duration} · \{segment\.shots/);
@@ -324,7 +333,7 @@ test("片段详情弹窗使用宽幅只读故事面板和完整参数", () => {
 test("片段详情复用元素替换的 Markdown 阅读布局", () => {
   const source = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
   const styles = readFileSync(new URL("./original-rewrite.css", import.meta.url), "utf8");
-  assert.match(source, /modal\.segment \? modal\.content : <div className="remake-modal-body">\{modal\.content\}<\/div>/);
+  assert.match(source, /modal\.segment \|\| modal\.image \? modal\.content : <div className="remake-modal-body">\{modal\.content\}<\/div>/);
   assert.doesNotMatch(source, /rewrite-segment-modal/);
   assert.doesNotMatch(styles, /rewrite-segment-modal/);
 });
