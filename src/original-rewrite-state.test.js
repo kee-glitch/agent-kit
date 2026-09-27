@@ -413,6 +413,19 @@ test("逐秒重绘使用紧凑列表和生成按钮三态文案", () => {
   assert.match(styles, /\.rewrite-redraw-params\{[^}]*padding:var\(--space-3\) var\(--space-4\)/);
 });
 
+test("逐秒重绘复用片段故事面板的全选操作和黑色选中边框", () => {
+  const source = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
+  const styles = readFileSync(new URL("./original-rewrite.css", import.meta.url), "utf8");
+  assert.match(source, /className="remake-batch-actions"/);
+  assert.match(source, /className="remake-select-all-button"/);
+  assert.match(source, /selectedIds\.length\}\/\{project\.segments\.length/);
+  assert.match(source, /className={`rewrite-redraw-row\$\{segment\.selected \? " selected" : ""\}`}/);
+  assert.match(source, /toggleAllRewriteSelections/);
+  assert.match(source, /toggleRewriteSelection/);
+  assert.match(styles, /\.rewrite-redraw-row\.selected\{border-color:var\(--color-bg-inverse\)\}/);
+  assert.match(styles, /\.rewrite-redraw-row\.selected::after\{[^}]*border:2px solid var\(--color-bg-inverse\)/);
+});
+
 test("逐秒重绘压缩固定参数列并为参考资源保留剩余空间", () => {
   const styles = readFileSync(new URL("./original-rewrite.css", import.meta.url), "utf8");
   assert.match(styles, /\.rewrite-redraw-row\{grid-template-columns:96px minmax\(0,1fr\) 110px\}/);
