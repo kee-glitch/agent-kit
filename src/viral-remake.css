@@ -70,7 +70,8 @@
 .remake-help:hover,
 .remake-outline:hover,
 .remake-demo-button:hover {
-  background: var(--color-interaction-hover);
+  border-color: var(--color-text-secondary);
+  background: var(--color-bg-surface);
 }
 .remake-help svg,
 .remake-outline svg,
@@ -293,12 +294,14 @@
 .remake-steps {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  width: min(1120px, calc(100% - 48px));
-  max-width: 1120px;
+  width: min(1320px, 100%);
   margin-inline: auto;
   box-sizing: border-box;
   padding: 24px clamp(24px, 4vw, 56px);
-  background: transparent;
+  overflow: hidden;
+  border-radius: 0 0 var(--radius-card-sm) var(--radius-card-sm);
+  border: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-surface);
 }
 .remake-steps button {
   position: relative;
@@ -337,7 +340,7 @@
   z-index: 2;
   padding-left: var(--space-3);
   padding-right: var(--space-4);
-  background: var(--color-bg-subtle-alt);
+  background: var(--color-bg-surface);
   font: var(--type-label-sm);
   white-space: nowrap;
 }
@@ -369,16 +372,222 @@
   background: var(--color-success);
 }
 .remake-stage {
-  width: min(1280px, calc(100% - 48px));
-  margin: 0 auto;
-  padding: 24px 0 64px;
+  width: min(1320px, calc(100% - 48px));
+  margin: var(--space-10) auto;
+  padding: var(--space-10);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  background: var(--color-bg-surface);
+}
+.remake-draft-layout {
+  display: grid;
+  min-height: 100%;
+  grid-template-columns: 320px minmax(0, 1fr);
+  background: var(--color-bg-subtle-alt);
+}
+.remake-draft-layout > :last-child {
+  min-width: 0;
+}
+.remake-draft-sidebar {
+  position: sticky;
+  z-index: 25;
+  top: 0;
+  display: flex;
+  height: 100dvh;
+  min-width: 0;
+  flex-direction: column;
+  border-right: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-surface);
+}
+.remake-draft-sidebar > header {
+  display: flex;
+  min-height: 72px;
+  align-items: center;
+  padding: 0 var(--space-8);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.remake-draft-sidebar > header strong {
+  font: var(--type-h3);
+}
+.remake-draft-new {
+  display: flex;
+  height: 46px;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  margin: var(--space-6) var(--space-6) var(--space-4);
+  border: 0;
+  border-radius: var(--radius-control);
+  background: var(--color-bg-inverse);
+  color: var(--color-text-inverse);
+  font: var(--type-label);
+  cursor: pointer;
+}
+.remake-draft-new svg,
+.remake-draft-search svg,
+.remake-draft-menu svg {
+  width: 16px;
+  height: 16px;
+}
+.remake-draft-search {
+  display: flex;
+  height: 44px;
+  align-items: center;
+  gap: var(--space-4);
+  margin: 0 var(--space-6) var(--space-5);
+  padding: 0 var(--space-5);
+  border-radius: var(--radius-control);
+  background: var(--color-bg-subtle-alt);
+  color: var(--color-text-tertiary);
+}
+.remake-draft-search input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font: var(--type-body);
+}
+.remake-draft-list {
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+  border-top: 1px solid var(--color-border-subtle);
+}
+.remake-draft-list article {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 36px;
+  min-height: 70px;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.remake-draft-list article.active {
+  background: var(--color-bg-subtle-alt);
+}
+.remake-draft-main {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 44px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4) 0 var(--space-4) var(--space-6);
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.remake-draft-main > span:last-child {
+  min-width: 0;
+}
+.remake-draft-thumb {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-tiny);
+  background: var(--color-bg-subtle);
+}
+.remake-draft-thumb svg {
+  width: 18px;
+}
+.remake-draft-main b,
+.remake-draft-main small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.remake-draft-main b {
+  font: var(--type-label-sm);
+}
+.remake-draft-main b svg {
+  width: 12px;
+  margin-right: var(--space-2);
+}
+.remake-draft-main small {
+  margin-top: var(--space-2);
+  color: var(--color-text-tertiary);
+  font: var(--type-body-sm);
+}
+.remake-draft-main small i::after {
+  content: "·";
+  margin: 0 var(--space-2);
+  font-style: normal;
+}
+.remake-draft-main input {
+  width: 100%;
+  height: 28px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border-focus);
+  border-radius: var(--radius-tiny);
+  font: var(--type-label-sm);
+}
+.remake-draft-more {
+  align-self: center;
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+}
+.remake-draft-more svg {
+  width: 16px;
+}
+.remake-draft-menu {
+  position: absolute;
+  z-index: 30;
+  top: 54px;
+  right: var(--space-4);
+  display: grid;
+  width: 132px;
+  padding: var(--space-2);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-control);
+  background: var(--color-bg-surface);
+  box-shadow: var(--shadow-float);
+}
+.remake-draft-menu button {
+  display: flex;
+  height: 34px;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--radius-tiny);
+  background: transparent;
+  font: var(--type-label-sm);
+  cursor: pointer;
+}
+.remake-draft-menu button:hover {
+  background: var(--color-bg-subtle-alt);
+}
+.remake-draft-menu button.danger {
+  color: var(--color-error);
+}
+.remake-draft-empty {
+  padding: var(--space-10) var(--space-6);
+  color: var(--color-text-tertiary);
+  font: var(--type-body-sm);
+  text-align: center;
+}
+@media (max-width: 1120px) {
+  .remake-draft-layout { grid-template-columns: 260px minmax(0, 1fr); }
+}
+@media (max-width: 760px) {
+  .remake-draft-layout { display: block; }
+  .remake-draft-sidebar { position: relative; width: 100%; height: auto; max-height: 360px; border-right: 0; border-bottom: 1px solid var(--color-border-subtle); }
 }
 .remake-stage-heading {
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: var(--space-10);
-  margin-bottom: var(--space-10);
+  gap: var(--space-8);
+  margin-bottom: var(--space-8);
 }
 .remake-stage-heading h1 {
   margin: 0;
@@ -1179,17 +1388,7 @@
 }
 
 .remake-segment-editors > article.selected {
-  border-color: var(--color-bg-inverse);
-}
-
-.remake-segment-editors > article.selected::after {
-  position: absolute;
-  z-index: 3;
-  inset: -1px;
   border: 2px solid var(--color-bg-inverse);
-  border-radius: inherit;
-  content: "";
-  pointer-events: none;
 }
 
 .remake-segment-footer-meta {
@@ -1566,7 +1765,7 @@
 .remake-video-modal {
   display: flex;
   flex-direction: column;
-  width: min(1100px, 100%);
+  width: min(1320px, 100%);
   max-height: calc(100dvh - 80px);
   overflow: hidden;
   border-radius: var(--radius-card);
@@ -1575,7 +1774,6 @@
 }
 
 .remake-video-modal {
-  width: min(920px, 100%);
   overflow: hidden;
 }
 
@@ -1608,7 +1806,6 @@
 .remake-segment-modal {
   display: flex;
   flex-direction: column;
-  width: min(680px, 100%);
   overflow: hidden;
   padding: 0;
 }
@@ -1641,18 +1838,6 @@
 }
 .remake-segment-modal > button {
   margin-left: auto;
-}
-.remake-steps {
-  padding-top: 18px;
-  padding-bottom: 12px;
-}
-.remake-stage {
-  padding-top: 10px;
-  padding-bottom: 48px;
-}
-.remake-stage-heading {
-  align-items: center;
-  margin-bottom: var(--space-7);
 }
 .remake-form-grid {
   grid-template-columns: 1.05fr 0.95fr;

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { AssetMarkdown, MentionEditor } from "./AssetMentions";
 import {
   ArrowLeft,
   ArrowRight,
@@ -59,27 +60,21 @@ import {
   clearRunningStatuses,
   clearVideo,
   createInitialProject,
-  findMentionCandidates,
   findBoundReplacementAsset,
-  getMentionMenuPosition,
   getTrappedFocusTarget,
-  isMentionClickOutside,
   isBackdropSelfClick,
   isLatestRequest,
   getMediaType,
   getSelectedSegmentIds,
   toggleAllSegmentSelections,
-  keepWithinTextLimit,
-  moveMentionSelection,
   nextAssetLabel,
   persistProject,
-  parseAssetReferenceHref,
+  serializeProject,
   queueGeneration,
   removeReplacementAsset,
   replaceSequencedAsset,
   setCurrentStep,
   setGenerationStatus,
-  splitAssetMentions,
   replaceVideo,
   updateDocument,
   updateReplacementAsset,
@@ -87,6 +82,8 @@ import {
 } from "./viral-remake-state";
 import "./viral-remake.css";
 import OriginalRewrite from "./OriginalRewrite";
+import RemakeDraftSidebar, { useRemakeDrafts } from "./RemakeDraftSidebar";
+import { ELEMENT_DRAFTS_KEY } from "./remake-drafts-state";
 
 const MODELS = [
   "seedance 2.0 mini",
@@ -338,257 +335,6 @@ function BoundReplacementRow({ resource, asset, onChoose, onClear }) {
   );
 }
 
-function MentionEditor({ value, assets, onChange }) {
-  const wrapRef = useRef(null);
-  const editorRef = useRef(null);
-  const rangeRef = useRef(null);
-  const [query, setQuery] = useState(null);
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [menuPosition, setMenuPosition] = useState({ left: 16, top: 16 });
-  const candidates = query === null ? [] : findMentionCandidates(assets, query);
-  const updateMentionToken = (token, asset, reference) => {
-    token.className = `remake-mention-token${asset ? "" : " missing"}`;
-    token.contentEditable = "false";
-    token.dataset.reference = reference;
-    let thumb = token.querySelector(":scope > .remake-token-thumb");
-    if (!thumb) {
-      thumb = document.createElement("span");
-      token.prepend(thumb);
-    }
-    thumb.className = "remake-token-thumb";
-    thumb.dataset.mediaType = asset?.type || "missing";
-    thumb.setAttribute("aria-hidden", "true");
-    thumb.replaceChildren();
-    if (asset?.type === "image" && (asset.preview || asset.path)) {
-      const image = document.createElement("img");
-      image.src = asset.preview || asset.path;
-      image.alt = "";
-      thumb.append(image);
-    }
-    const label = Array.from(token.childNodes).find(
-      (node) => node.nodeType === Node.TEXT_NODE,
-    );
-    if (label) label.nodeValue = reference;
-    else token.append(document.createTextNode(reference));
-  };
-  const createMentionToken = (asset, reference) => {
-    const token = document.createElement("span");
-    updateMentionToken(token, asset, reference);
-    return token;
-  };
-  const renderValue = (force = false, nextValue = value) => {
-    const editor = editorRef.current;
-    if (!editor || (!force && document.activeElement === editor)) return;
-    editor.replaceChildren();
-    nextValue
-      .split(/(@(?:图片|音频|视频)\d+)/g)
-      .filter(Boolean)
-      .forEach((part) => {
-        if (!/^@(图片|音频|视频)\d+$/.test(part))
-          return editor.append(document.createTextNode(part));
-        const asset = assets.find((item) => `@${item.role}` === part);
-        editor.append(createMentionToken(asset, part));
-      });
-  };
-  useEffect(renderValue, [value]);
-  useEffect(() => {
-    const editor = editorRef.current;
-    if (!editor) return;
-    editor.querySelectorAll(".remake-mention-token").forEach((token) => {
-      const reference = token.dataset.reference;
-      const asset = assets.find((item) => `@${item.role}` === reference);
-      updateMentionToken(token, asset, reference);
-    });
-  }, [assets]);
-  useEffect(() => setActiveIndex(0), [query]);
-  useEffect(() => {
-    if (query === null) return undefined;
-    const dismissOnOutsidePress = (event) => {
-      if (isMentionClickOutside(wrapRef.current, event.target)) {
-        setQuery(null);
-        setActiveIndex(0);
-      }
-    };
-    document.addEventListener("pointerdown", dismissOnOutsidePress);
-    return () =>
-      document.removeEventListener("pointerdown", dismissOnOutsidePress);
-  }, [query]);
-  const serializeEditor = (editor) => editor.innerText;
-  const sync = () => {
-    const editor = editorRef.current;
-    const selection = window.getSelection();
-    if (!editor || !selection?.rangeCount) return;
-    const range = selection.getRangeAt(0);
-    rangeRef.current = range.cloneRange();
-    const attempted = serializeEditor(editor).replace(/\u00a0/g, " ");
-    const text = keepWithinTextLimit(value, attempted);
-    if (text !== attempted) {
-      renderValue(true, value);
-      const end = document.createRange();
-      end.selectNodeContents(editor);
-      end.collapse(false);
-      selection.removeAllRanges();
-      selection.addRange(end);
-      rangeRef.current = end.cloneRange();
-    }
-    onChange(text);
-    const before = range.cloneRange();
-    before.selectNodeContents(editor);
-    before.setEnd(range.endContainer, range.endOffset);
-    const match = before.toString().match(/@([^@\s]*)$/);
-    if (match && wrapRef.current) {
-      const caret = range.cloneRange();
-      caret.collapse(false);
-      const caretRect = caret.getBoundingClientRect();
-      const wrapRect = wrapRef.current.getBoundingClientRect();
-      setMenuPosition(
-        getMentionMenuPosition(
-          {
-            right: caretRect.right - wrapRect.left,
-            bottom: caretRect.bottom - wrapRect.top,
-          },
-          wrapRef.current.clientWidth,
-        ),
-      );
-    }
-    setQuery(match ? match[1] : null);
-  };
-  const insertMention = (asset) => {
-    const range = rangeRef.current;
-    const editor = editorRef.current;
-    if (!range || !editor) return;
-    const removeLength = (query?.length || 0) + 1;
-    const currentText = serializeEditor(editor).replace(/\u00a0/g, " ");
-    const nextLength =
-      currentText.length - removeLength + asset.role.length + 2;
-    if (nextLength > 500) {
-      setQuery(null);
-      return;
-    }
-    if (
-      range.startContainer.nodeType === Node.TEXT_NODE &&
-      range.startOffset >= removeLength
-    )
-      range.setStart(range.startContainer, range.startOffset - removeLength);
-    range.deleteContents();
-    const token = createMentionToken(asset, `@${asset.role}`);
-    const space = document.createTextNode("\u00a0");
-    range.insertNode(space);
-    range.insertNode(token);
-    range.setStartAfter(space);
-    range.collapse(true);
-    const selection = window.getSelection();
-    selection.removeAllRanges();
-    selection.addRange(range);
-    editor.focus();
-    setQuery(null);
-    onChange(serializeEditor(editor).replace(/\u00a0/g, " "));
-  };
-  return (
-    <div ref={wrapRef} className="remake-mention-wrap">
-      <div
-        ref={editorRef}
-        className="remake-mention-editor"
-        contentEditable
-        role="textbox"
-        aria-label="替换需求"
-        aria-multiline="true"
-        aria-activedescendant={
-          query !== null && candidates[activeIndex]
-            ? `mention-option-${candidates[activeIndex].id}`
-            : undefined
-        }
-        data-placeholder="输入替换需求，输入 @ 引用左侧素材"
-        onInput={sync}
-        onKeyUp={(event) =>
-          !["Escape", "ArrowDown", "ArrowUp", "Enter"].includes(event.key) &&
-          sync()
-        }
-        onKeyDown={(event) => {
-          if (event.key === "Escape") {
-            event.preventDefault();
-            setQuery(null);
-            setActiveIndex(0);
-          }
-          if (
-            query !== null &&
-            (event.key === "ArrowDown" || event.key === "ArrowUp")
-          ) {
-            event.preventDefault();
-            setActiveIndex((index) =>
-              moveMentionSelection(
-                index,
-                event.key === "ArrowDown" ? 1 : -1,
-                candidates.length,
-              ),
-            );
-          }
-          if (
-            event.key === "Enter" &&
-            query !== null &&
-            candidates[activeIndex]
-          ) {
-            event.preventDefault();
-            insertMention(candidates[activeIndex]);
-            setActiveIndex(0);
-          }
-        }}
-      />
-      {query !== null && (
-        <div
-          className="remake-mention-menu"
-          role="listbox"
-          aria-label="引用替换素材"
-          style={menuPosition}
-        >
-          {candidates.length ? (
-            candidates.map((asset, index) => (
-              <button
-                type="button"
-                role="option"
-                id={`mention-option-${asset.id}`}
-                aria-selected={index === activeIndex}
-                className={index === activeIndex ? "active" : ""}
-                key={asset.id}
-                onMouseEnter={() => setActiveIndex(index)}
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => insertMention(asset)}
-              >
-                <span className={`remake-mention-thumb ${asset.type}`}>
-                  {asset.type === "image" && (asset.preview || asset.path) ? (
-                    <img src={asset.preview || asset.path} alt="" />
-                  ) : asset.type === "audio" ? (
-                    <AudioLines />
-                  ) : (
-                    <Video />
-                  )}
-                </span>
-                <span className="remake-mention-copy">
-                  <b>@{asset.role}</b>
-                  <small>
-                    {asset.type === "image"
-                      ? "图片"
-                      : asset.type === "audio"
-                        ? "音频"
-                        : "视频"}{" "}
-                    · {asset.name}
-                  </small>
-                </span>
-              </button>
-            ))
-          ) : (
-            <p>没有匹配的素材</p>
-          )}
-        </div>
-      )}
-      <small className="remake-request-count">{value.length}/500</small>
-      <span className="remake-at-hint">
-        <AtSign />
-        输入 @ 引用素材
-      </span>
-    </div>
-  );
-}
 
 function StepOne({ project, setProject, onDemo, onNext, notify }) {
   const chooseVideo = (event) => {
@@ -754,89 +500,18 @@ function BoardGallery({ originals = false, onOpen }) {
   );
 }
 
-function remarkAssetMentions() {
-  return (tree) => {
-    const visit = (node) => {
-      if (!Array.isArray(node.children)) return;
-      node.children = node.children.flatMap((child) => {
-        if (child.type !== "text" && child.type !== "inlineCode") {
-          visit(child);
-          return [child];
-        }
-        const parts = splitAssetMentions(child.value);
-        if (!parts.some((part) => part.type === "mention")) return [child];
-        return parts.map((part) =>
-          part.type === "mention"
-            ? {
-                type: "link",
-                url: `#asset-${encodeURIComponent(part.role)}`,
-                children: [{ type: "text", value: part.value }],
-              }
-            : { type: child.type, value: part.value },
-        );
-      });
-    };
-    visit(tree);
-  };
-}
-
-function AssetMention({ asset, reference }) {
-  return (
-    <span
-      className={`remake-mention-token${asset ? "" : " missing"}`}
-      data-reference={`@${reference}`}
-      title={asset?.name || "素材已删除"}
-      aria-label={asset ? `@${reference}，${asset.name}` : `@${reference}，素材已删除`}
-    >
-      <span
-        className="remake-token-thumb"
-        data-media-type={asset?.type || "missing"}
-        aria-hidden="true"
-      >
-        {asset?.type === "image" && (asset.preview || asset.path) && (
-          <img src={asset.preview || asset.path} alt="" />
-        )}
-      </span>
-      @{reference}
-    </span>
-  );
-}
-
-function AssetMarkdown({ value, assets, className = "" }) {
-  return (
-    <div className={`remake-markdown-body ${className}`.trim()}>
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkAssetMentions]}
-        components={{
-          a({ href, children }) {
-            const role = parseAssetReferenceHref(href);
-            if (role) {
-              return (
-                <AssetMention
-                  asset={assets.find((item) => item.role === role)}
-                  reference={role}
-                />
-              );
-            }
-            return <a href={href}>{children}</a>;
-          },
-        }}
-      >
-        {value}
-      </ReactMarkdown>
-    </div>
-  );
-}
 
 function DocumentEditor({
   title,
   value,
   assets,
+  onChange,
   onSave,
   onRegenerate,
   regenerating,
 }) {
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
   const triggerRef = useRef(null);
   const closeRef = useRef(null);
   const dialogRef = useRef(null);
@@ -865,40 +540,62 @@ function DocumentEditor({
             </div>
           </div>
           <div>
+            <button
+              type="button"
+              aria-label={editing ? `预览${title}` : `编辑${title}`}
+              onClick={() => setEditing((value) => !value)}
+            >
+              <FilePenLine />
+              {editing ? "预览" : "编辑"}
+            </button>
             <button onClick={onRegenerate} disabled={regenerating}>
               {regenerating ? <LoaderCircle className="spin" /> : <RefreshCw />}
               {regenerating ? "生成中" : "重新生成"}
             </button>
-            <button className="primary" onClick={onSave}>
+            <button
+              className="primary"
+              onClick={() => {
+                onSave();
+                setEditing(false);
+              }}
+            >
               <Save />
               保存
             </button>
           </div>
         </header>
-        <div
-          ref={triggerRef}
-          className="remake-storyboard-trigger"
-          role="button"
-          tabIndex={0}
-          aria-label={`阅读完整${title}`}
-          onClick={() => setOpen(true)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" || event.key === " ") {
-              event.preventDefault();
-              setOpen(true);
-            }
-          }}
-        >
-          <AssetMarkdown
+        {editing ? (
+          <textarea
+            aria-label="故事面板正文"
             value={value}
-            assets={assets}
-            className="remake-storyboard-preview"
+            onChange={(event) => onChange(event.target.value)}
           />
-          <span className="remake-storyboard-read-more">
-            <Maximize2 />
-            点击阅读完整内容
-          </span>
-        </div>
+        ) : (
+          <div
+            ref={triggerRef}
+            className="remake-storyboard-trigger"
+            role="button"
+            tabIndex={0}
+            aria-label={`阅读完整${title}`}
+            onClick={() => setOpen(true)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                setOpen(true);
+              }
+            }}
+          >
+            <AssetMarkdown
+              value={value}
+              assets={assets}
+              className="remake-storyboard-preview"
+            />
+            <span className="remake-storyboard-read-more">
+              <Maximize2 />
+              点击阅读完整内容
+            </span>
+          </div>
+        )}
       </article>
       {open && (
         <div
@@ -1311,6 +1008,9 @@ function StepThree({
         title={mode === "structure" ? "结构仿写故事面板" : "替换后的故事面板"}
         value={value}
         assets={project.assets}
+        onChange={(nextValue) =>
+          setProject((value) => updateDocument(value, "storyboard", nextValue))
+        }
         onSave={save}
         onRegenerate={regenerate}
         regenerating={regenerating}
@@ -1685,155 +1385,8 @@ function StepFour({
   );
 }
 
-function StepFive({ project, setProject, notify, openSegment }) {
-  const timers = useRef(new Map());
-  const inFlight = useRef(new Set());
-  useEffect(
-    () => () => {
-      timers.current.forEach(clearTimeout);
-      timers.current.clear();
-      inFlight.current.clear();
-      setProject((value) => clearRunningStatuses(value));
-    },
-    [setProject],
-  );
-  const beginGeneration = (ids) => {
-    const started = ids.filter((id) => !inFlight.current.has(id));
-    if (!started.length) {
-      notify("所选片段已在生成中");
-      return;
-    }
-    started.forEach((id) => inFlight.current.add(id));
-    setProject((value) => queueGeneration(value, started).project);
-    started.forEach((id, index) => {
-      const timer = window.setTimeout(
-        () => {
-          inFlight.current.delete(id);
-          timers.current.delete(id);
-          setProject((value) => setGenerationStatus(value, id, "done"));
-          notify(
-            `${segmentDocuments.find((item) => item.id === id)?.title}生成完成`,
-          );
-        },
-        1400 + index * 220,
-      );
-      timers.current.set(id, timer);
-    });
-  };
-  const generate = (id) => beginGeneration([id]);
-  const batch = () => beginGeneration(segmentDocuments.map((item) => item.id));
-  return (
-    <section className="remake-stage">
-      <div className="remake-stage-heading">
-        <div>
-          <span className="remake-kicker">STEP 05</span>
-          <h1>生成复刻视频</h1>
-          <p>检查每段故事面板后单独生成，或一次性提交全部片段。</p>
-        </div>
-        <button className="remake-primary" onClick={batch}>
-          <Sparkles />
-          批量生成全部
-        </button>
-      </div>
-      <div className="remake-generation-overview">
-        <div>
-          <b>3</b>
-          <span>生成片段</span>
-        </div>
-        <div>
-          <b>41s</b>
-          <span>合成后时长</span>
-        </div>
-        <div>
-          <b>{project.aspectRatio}</b>
-          <span>画面比例</span>
-        </div>
-        <div>
-          <b>{project.model}</b>
-          <span>视频模型</span>
-        </div>
-      </div>
-      <div className="remake-generate-list">
-        {segmentDocuments.map((segment, index) => {
-          const status = project.generation[segment.id] || "idle";
-          const thumb = replacedBoards[index];
-          return (
-            <article key={segment.id}>
-              <button
-                className="remake-video-thumb"
-                onClick={() => openSegment(segment)}
-              >
-                <img src={thumb} alt={`${segment.title}预览`} />
-                <span>
-                  <Play />
-                </span>
-                <i>{segment.duration}</i>
-              </button>
-              <div className="remake-video-info">
-                <header>
-                  <div>
-                    <span>0{index + 1}</span>
-                    <div>
-                      <h2>{segment.title}</h2>
-                      <p>
-                        {segment.time} · {segment.shots}
-                      </p>
-                    </div>
-                  </div>
-                  <em className={status}>
-                    {status === "done"
-                      ? "已完成"
-                      : status === "running"
-                        ? "生成中"
-                        : "待生成"}
-                  </em>
-                </header>
-              <p>{segment.summary}</p>
-                <footer>
-                  <button onClick={() => openSegment(segment)}>
-                    <FileText />
-                    查看故事面板
-                  </button>
-                  <button
-                    className="primary"
-                    disabled={status === "running"}
-                    onClick={() => generate(segment.id)}
-                  >
-                    {status === "running" ? (
-                      <LoaderCircle className="spin" />
-                    ) : status === "done" ? (
-                      <RefreshCw />
-                    ) : (
-                      <Video />
-                    )}
-                    {status === "done"
-                      ? "重新生成"
-                      : status === "running"
-                        ? "生成中"
-                        : "生成视频"}
-                  </button>
-                </footer>
-              </div>
-            </article>
-          );
-        })}
-      </div>
-      <div className="remake-stage-footer">
-        <button
-          className="remake-secondary"
-          onClick={() => setProject((value) => setCurrentStep(value, 4))}
-        >
-          <ArrowLeft />
-          返回片段编辑
-        </button>
-        <span>生成结果仅用于前端流程演示</span>
-      </div>
-    </section>
-  );
-}
-
 export default function ViralRemake() {
-  const [selected, setSelected] = useState(null);
+  const [mode, setMode] = useState(null);
   const [project, setProject] = useState(() =>
     createInitialProject(localStorage.getItem(STORAGE_KEY) || {}),
   );
@@ -1841,6 +1394,7 @@ export default function ViralRemake() {
   const [viewer, setViewer] = useState(null);
   const [segmentDetail, setSegmentDetail] = useState(null);
   const [regenerating, setRegenerating] = useState(false);
+  const elementDrafts = useRemakeDrafts(ELEMENT_DRAFTS_KEY, "element");
   const timer = useRef(null);
   const viewerCloseRef = useRef(null);
   const viewerReturnFocusRef = useRef(null);
@@ -1887,7 +1441,8 @@ export default function ViralRemake() {
     setViewer({ src, title });
   };
   const save = () => {
-    persistProject(localStorage, project, getStorageKey(selected));
+    persistProject(localStorage, project, getStorageKey(mode));
+    if (mode === "element") elementDrafts.save(JSON.parse(serializeProject(project)));
     notify("草稿已保存到当前浏览器");
   };
   const next = () => setProject((value) => advanceStep(value));
@@ -1897,7 +1452,7 @@ export default function ViralRemake() {
       videoName: "需要复刻的模板视频.mp4",
       request: demoRequest,
       model: "seedance 2.0",
-      aspectRatio: selected === "structure" ? structureDemo.aspectRatio : value.aspectRatio,
+      aspectRatio: mode === "structure" ? structureDemo.aspectRatio : value.aspectRatio,
       assets: demoAssets,
       assetCounters: { image: 3, audio: 0, video: 0 },
       documents: {
@@ -1922,26 +1477,28 @@ export default function ViralRemake() {
   };
   const reset = () => {
     if (!window.confirm("确定清空当前草稿并重新开始吗？")) return;
-    localStorage.removeItem(getStorageKey(selected));
+    localStorage.removeItem(getStorageKey(mode));
     setProject(createInitialProject());
-    setSelected(null);
+    setMode(null);
     notify("项目已重置");
   };
   return (
     <main className="viral-remake-shell">
-      {!selected ? (
-        <ModeSelection onSelect={(mode) => {
-          setSelected(mode);
-          setProject(createInitialProject(localStorage.getItem(getStorageKey(mode)) || {}));
+      {!mode ? (
+        <ModeSelection onSelect={(nextMode) => {
+          setMode(nextMode);
+          setProject(createInitialProject(localStorage.getItem(getStorageKey(nextMode)) || {}));
         }} notify={notify} />
-      ) : selected === "rewrite" ? (
-        <OriginalRewrite onBack={() => setSelected(null)} notify={notify} />
+      ) : mode === "rewrite" ? (
+        <OriginalRewrite onBack={() => setMode(null)} notify={notify} />
       ) : (
-        <div className="remake-workspace">
+        <div className="remake-draft-layout">
+          {mode === "element" && <RemakeDraftSidebar storageKey={ELEMENT_DRAFTS_KEY} title="元素替换任务记录" manager={elementDrafts} onNew={() => { elementDrafts.setActiveId(null); setProject(createInitialProject()); }} onSelect={(draft) => setProject(createInitialProject(draft.project))} />}
+          <div className="remake-workspace">
           <WorkflowHeader
             project={project}
-            mode={selected}
-            onBack={() => setSelected(null)}
+            mode={mode}
+            onBack={() => setMode(null)}
             onStep={(step) =>
               setProject((value) => setCurrentStep(value, step))
             }
@@ -1960,7 +1517,7 @@ export default function ViralRemake() {
           {project.step === 2 && (
             <StepTwo
               project={project}
-              mode={selected}
+              mode={mode}
               setProject={setProject}
               onNext={next}
           onOpen={openViewer}
@@ -1970,7 +1527,7 @@ export default function ViralRemake() {
           {project.step === 3 && (
             <StepThree
               project={project}
-              mode={selected}
+              mode={mode}
               setProject={setProject}
               onNext={next}
             onOpen={openViewer}
@@ -1986,7 +1543,8 @@ export default function ViralRemake() {
             notify={notify}
           />
         )}{" "}
-      </div>
+          </div>
+        </div>
       )}
       {notice && (
         <div className="remake-toast">

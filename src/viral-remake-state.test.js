@@ -94,8 +94,67 @@ test("结构仿写草稿保存到指定键而不覆盖元素替换", () => {
   );
 });
 
+test("元素替换工作区对齐原片仿写的页面骨架", () => {
+  assert.match(viralRemakeStyles, /\.remake-steps \{[\s\S]*?width: min\(1320px, 100%\);[\s\S]*?background: var\(--color-bg-surface\);[\s\S]*?border-bottom: 1px solid var\(--color-border-subtle\);[\s\S]*?\}/);
+  assert.match(viralRemakeStyles, /\.remake-stage \{[\s\S]*?width: min\(1320px, calc\(100% - 48px\)\);[\s\S]*?margin: var\(--space-10\) auto;[\s\S]*?padding: var\(--space-10\);[\s\S]*?background: var\(--color-bg-surface\);[\s\S]*?\}/);
+  assert.match(viralRemakeStyles, /\.remake-stage-heading \{[\s\S]*?align-items: flex-start;[\s\S]*?gap: var\(--space-8\);[\s\S]*?margin-bottom: var\(--space-8\);[\s\S]*?\}/);
+  assert.match(viralRemakeStyles, /\.remake-image-viewer,[\s\S]*?\.remake-segment-modal,[\s\S]*?\.remake-video-modal \{[\s\S]*?width: min\(1320px, 100%\)/);
+  assert.doesNotMatch(viralRemakeStyles, /\.remake-steps \{[^}]*width: min\(1120px/);
+  assert.doesNotMatch(viralRemakeStyles, /\.remake-stage \{[^}]*width: min\(1280px/);
+  assert.doesNotMatch(viralRemakeStyles, /\.remake-(?:image-viewer|video-modal|segment-modal)[^{]*\{[^}]*width: min\((?:1100|920|680)px/);
+});
+
+test("元素替换和原片仿写步骤导航统一使用完整边框并仅保留下方圆角", () => {
+  const rewriteStyles = readFileSync(new URL("./original-rewrite.css", import.meta.url), "utf8");
+  assert.match(viralRemakeStyles, /\.remake-steps \{[\s\S]*?border-radius: 0 0 var\(--radius-card-sm\) var\(--radius-card-sm\);[\s\S]*?border: 1px solid var\(--color-border-subtle\);[\s\S]*?background: var\(--color-bg-surface\);/);
+  assert.match(rewriteStyles, /\.rewrite-steps\{[^}]*border-radius:0 0 var\(--radius-card-sm\) var\(--radius-card-sm\)[^}]*border:1px solid var\(--color-border-subtle\)[^}]*background:var\(--color-bg-surface\)/);
+  assert.doesNotMatch(viralRemakeStyles, /\.remake-steps \{[^}]*border-bottom:/);
+  assert.doesNotMatch(rewriteStyles, /\.rewrite-steps\{[^}]*border-bottom:/);
+});
+
+test("元素替换和原片仿写分别挂载独立草稿记录侧栏", () => {
+  const rewriteSource = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
+  const sidebarSource = readFileSync(new URL("./RemakeDraftSidebar.jsx", import.meta.url), "utf8");
+  assert.match(viralRemakeSource, /<RemakeDraftSidebar[\s\S]*?storageKey=\{ELEMENT_DRAFTS_KEY\}/);
+  assert.match(rewriteSource, /<RemakeDraftSidebar[\s\S]*?storageKey=\{REWRITE_DRAFTS_KEY\}/);
+  assert.match(sidebarSource, /任务记录/);
+  assert.match(sidebarSource, /新建任务/);
+  assert.match(sidebarSource, /搜索任务/);
+  assert.match(sidebarSource, /置顶/);
+  assert.match(sidebarSource, /重命名/);
+  assert.match(sidebarSource, /删除/);
+});
+
+test("两个独立草稿侧栏在任务记录前显示所属模块", () => {
+  const rewriteSource = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
+  const sidebarSource = readFileSync(new URL("./RemakeDraftSidebar.jsx", import.meta.url), "utf8");
+  assert.match(viralRemakeSource, /<RemakeDraftSidebar[\s\S]*?title="元素替换任务记录"/);
+  assert.match(rewriteSource, /<RemakeDraftSidebar[\s\S]*?storageKey=\{REWRITE_DRAFTS_KEY\}/);
+  assert.match(sidebarSource, /storageKey === REWRITE_DRAFTS_KEY \? "原片仿写任务记录" : "元素替换任务记录"/);
+  assert.match(sidebarSource, /<strong>\{heading\}<\/strong>/);
+});
+
 test("复刻流程只保留四个步骤并在片段提取结束", () => {
   assert.deepEqual(steps, ["拆解视频", "替换素材", "替换结果", "提取片段"]);
+});
+
+test("替换后的故事面板支持切换编辑并保存正文", () => {
+  assert.match(
+    viralRemakeSource,
+    /function DocumentEditor\(\{[\s\S]*?onChange,[\s\S]*?\}\)/,
+  );
+  assert.match(
+    viralRemakeSource,
+    /aria-label=\{editing \? `预览\$\{title\}` : `编辑\$\{title\}`\}/,
+  );
+  assert.match(
+    viralRemakeSource,
+    /<textarea[\s\S]*?value=\{value\}[\s\S]*?onChange=\{\(event\) => onChange\(event\.target\.value\)\}/,
+  );
+  assert.match(
+    viralRemakeSource,
+    /onChange=\{\(nextValue\) =>[\s\S]*?updateDocument\(value, "storyboard", nextValue\)/,
+  );
 });
 
 test("项目流程不会进入已移除的第五步", () => {
@@ -155,11 +214,8 @@ test("片段卡片移除复选框并使用黑色边框表示选择状态", () =>
     viralRemakeSource,
     /<header[\s\S]{0,180}?role="button"/,
   );
-  assert.match(selectedCardRule, /border-color:\s*var\(--color-bg-inverse\)/);
-  assert.match(selectedOutlineRule, /position:\s*absolute/);
-  assert.match(selectedOutlineRule, /inset:\s*-1px/);
-  assert.match(selectedOutlineRule, /z-index:\s*3/);
-  assert.match(selectedOutlineRule, /pointer-events:\s*none/);
+  assert.match(selectedCardRule, /border:\s*2px solid var\(--color-bg-inverse\)/);
+  assert.equal(selectedOutlineRule, "");
 });
 
 test("所有遮罩弹窗统一使用文字关闭按钮", () => {
@@ -268,7 +324,7 @@ test("步骤条保持居中且长内容弹窗仅正文区域滚动", () => {
   )?.[1] ?? "";
 
   assert.match(stepsRule, /margin-inline:\s*auto/);
-  assert.match(stepsRule, /width:\s*min\(1120px,/);
+  assert.match(stepsRule, /width:\s*min\(1320px,/);
   assert.match(stepButtonRule, /justify-content:\s*center/);
   assert.match(stepButtonRule, /gap:\s*0/);
   assert.match(stepLabelRule, /padding-left:\s*var\(--space-3\)/);

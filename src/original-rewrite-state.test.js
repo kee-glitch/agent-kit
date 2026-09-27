@@ -145,7 +145,7 @@ test("模式选择开放原片仿写并挂载六步工作台", () => {
   const viralSource = readFileSync(new URL("./ViralRemake.jsx", import.meta.url), "utf8");
   const rewriteSource = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
   assert.match(viralSource, /onSelect\(mode\.id\)/);
-  assert.match(viralSource, /selected === "rewrite"/);
+  assert.match(viralSource, /mode === "rewrite"/);
   assert.match(viralSource, /<OriginalRewrite/);
   assert.match(rewriteSource, /rewriteSteps\.map/);
   assert.match(rewriteSource, /aria-label="原片仿写项目进度"/);
@@ -303,6 +303,7 @@ test("原片仿写复用带缩略图的资源引用并提供未生成状态", ()
   assert.equal(existsSync(sharedUrl), true, "应提取共享资源引用组件");
   const shared = readFileSync(sharedUrl, "utf8");
   const rewrite = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
+  const viral = readFileSync(new URL("./ViralRemake.jsx", import.meta.url), "utf8");
   const styles = readFileSync(new URL("./original-rewrite.css", import.meta.url), "utf8");
   assert.match(shared, /export function MentionEditor/);
   assert.match(shared, /export function AssetMarkdown/);
@@ -311,7 +312,7 @@ test("原片仿写复用带缩略图的资源引用并提供未生成状态", ()
   assert.match(rewrite, /尚未生成故事面板/);
   assert.match(rewrite, /<MentionEditor/);
   assert.match(rewrite, /<AssetMarkdown/);
-  assert.match(rewrite, /import \{ AssetMarkdown, AssetMention, MentionEditor \} from "\.\/AssetMentions"/);
+  assert.match(viral, /import \{ AssetMarkdown, MentionEditor \} from "\.\/AssetMentions"/);
   assert.match(styles, /\.rewrite-steps button:hover\{background:transparent\}/);
 });
 
@@ -338,10 +339,11 @@ test("原片仿写弹窗复用元素替换的遮罩和弹窗结构", () => {
 
 test("逐秒分镜大图弹窗复用元素替换的最大宽度", () => {
   const source = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
-  const styles = readFileSync(new URL("./original-rewrite.css", import.meta.url), "utf8");
+  const sharedStyles = readFileSync(new URL("./viral-remake.css", import.meta.url), "utf8");
   assert.match(source, /modal\.image \? "remake-image-viewer"/);
   assert.match(source, /title: "逐秒拆解分镜", image: true/);
-  assert.match(styles, /\.rewrite-modal-layer :is\(\.remake-image-viewer,[^}]*width:min\(1320px,100%\)/);
+  assert.match(sharedStyles, /\.remake-image-viewer,[\s\S]*?width: min\(1320px, 100%\)/);
+  assert.match(sharedStyles, /\.remake-markdown-modal \{[\s\S]*?width: min\(1320px,/);
 });
 
 test("原片仿写六个步骤使用统一的页面宽度", () => {
