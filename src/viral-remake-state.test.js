@@ -59,6 +59,16 @@ const viralRemakeStyles = readFileSync(
   "utf8",
 );
 
+test("元素替换工作区对齐原片仿写的页面骨架", () => {
+  assert.match(viralRemakeStyles, /\.remake-steps \{[\s\S]*?width: min\(1320px, 100%\);[\s\S]*?background: var\(--color-bg-surface\);[\s\S]*?border-bottom: 1px solid var\(--color-border-subtle\);[\s\S]*?\}/);
+  assert.match(viralRemakeStyles, /\.remake-stage \{[\s\S]*?width: min\(1320px, calc\(100% - 48px\)\);[\s\S]*?margin: var\(--space-10\) auto;[\s\S]*?padding: var\(--space-10\);[\s\S]*?background: var\(--color-bg-surface\);[\s\S]*?\}/);
+  assert.match(viralRemakeStyles, /\.remake-stage-heading \{[\s\S]*?align-items: flex-start;[\s\S]*?gap: var\(--space-8\);[\s\S]*?margin-bottom: var\(--space-8\);[\s\S]*?\}/);
+  assert.match(viralRemakeStyles, /\.remake-image-viewer,[\s\S]*?\.remake-segment-modal,[\s\S]*?\.remake-video-modal \{[\s\S]*?width: min\(1320px, 100%\)/);
+  assert.doesNotMatch(viralRemakeStyles, /\.remake-steps \{[^}]*width: min\(1120px/);
+  assert.doesNotMatch(viralRemakeStyles, /\.remake-stage \{[^}]*width: min\(1280px/);
+  assert.doesNotMatch(viralRemakeStyles, /\.remake-(?:image-viewer|video-modal|segment-modal)[^{]*\{[^}]*width: min\((?:1100|920|680)px/);
+});
+
 test("复刻流程只保留四个步骤并在片段提取结束", () => {
   assert.deepEqual(steps, ["拆解视频", "替换素材", "替换结果", "提取片段"]);
 });
@@ -252,7 +262,7 @@ test("步骤条保持居中且长内容弹窗仅正文区域滚动", () => {
   )?.[1] ?? "";
 
   assert.match(stepsRule, /margin-inline:\s*auto/);
-  assert.match(stepsRule, /width:\s*min\(1120px,/);
+  assert.match(stepsRule, /width:\s*min\(1320px,/);
   assert.match(stepButtonRule, /justify-content:\s*center/);
   assert.match(stepButtonRule, /gap:\s*0/);
   assert.match(stepLabelRule, /padding-left:\s*var\(--space-3\)/);

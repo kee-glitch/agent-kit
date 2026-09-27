@@ -70,7 +70,8 @@
 .remake-help:hover,
 .remake-outline:hover,
 .remake-demo-button:hover {
-  background: var(--color-interaction-hover);
+  border-color: var(--color-text-secondary);
+  background: var(--color-bg-surface);
 }
 .remake-help svg,
 .remake-outline svg,
@@ -293,12 +294,12 @@
 .remake-steps {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  width: min(1120px, calc(100% - 48px));
-  max-width: 1120px;
+  width: min(1320px, 100%);
   margin-inline: auto;
   box-sizing: border-box;
   padding: 24px clamp(24px, 4vw, 56px);
-  background: transparent;
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-surface);
 }
 .remake-steps button {
   position: relative;
@@ -337,7 +338,7 @@
   z-index: 2;
   padding-left: var(--space-3);
   padding-right: var(--space-4);
-  background: var(--color-bg-subtle-alt);
+  background: var(--color-bg-surface);
   font: var(--type-label-sm);
   white-space: nowrap;
 }
@@ -369,16 +370,19 @@
   background: var(--color-success);
 }
 .remake-stage {
-  width: min(1280px, calc(100% - 48px));
-  margin: 0 auto;
-  padding: 24px 0 64px;
+  width: min(1320px, calc(100% - 48px));
+  margin: var(--space-10) auto;
+  padding: var(--space-10);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-card);
+  background: var(--color-bg-surface);
 }
 .remake-stage-heading {
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: var(--space-10);
-  margin-bottom: var(--space-10);
+  gap: var(--space-8);
+  margin-bottom: var(--space-8);
 }
 .remake-stage-heading h1 {
   margin: 0;
@@ -1531,7 +1535,7 @@
 .remake-video-modal {
   display: flex;
   flex-direction: column;
-  width: min(1100px, 100%);
+  width: min(1320px, 100%);
   max-height: calc(100dvh - 80px);
   overflow: hidden;
   border-radius: var(--radius-card);
@@ -1540,7 +1544,6 @@
 }
 
 .remake-video-modal {
-  width: min(920px, 100%);
   overflow: hidden;
 }
 
@@ -1573,7 +1576,6 @@
 .remake-segment-modal {
   display: flex;
   flex-direction: column;
-  width: min(680px, 100%);
   overflow: hidden;
   padding: 0;
 }
@@ -1606,18 +1608,6 @@
 }
 .remake-segment-modal > button {
   margin-left: auto;
-}
-.remake-steps {
-  padding-top: 18px;
-  padding-bottom: 12px;
-}
-.remake-stage {
-  padding-top: 10px;
-  padding-bottom: 48px;
-}
-.remake-stage-heading {
-  align-items: center;
-  margin-bottom: var(--space-7);
 }
 .remake-form-grid {
   grid-template-columns: 1.05fr 0.95fr;

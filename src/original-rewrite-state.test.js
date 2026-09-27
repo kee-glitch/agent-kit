@@ -330,7 +330,7 @@ test("逐秒分镜大图弹窗复用元素替换的最大宽度", () => {
   const sharedStyles = readFileSync(new URL("./viral-remake.css", import.meta.url), "utf8");
   assert.match(source, /modal\.image \? "remake-image-viewer"/);
   assert.match(source, /title: "逐秒拆解分镜", image: true/);
-  assert.match(sharedStyles, /\.remake-image-viewer,[\s\S]*?width: min\(1100px, 100%\)/);
+  assert.match(sharedStyles, /\.remake-image-viewer,[\s\S]*?width: min\(1320px, 100%\)/);
   assert.match(sharedStyles, /\.remake-markdown-modal \{[\s\S]*?width: min\(1320px,/);
 });
 
