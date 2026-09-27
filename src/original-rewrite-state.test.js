@@ -374,6 +374,13 @@ test("逐秒重绘使用紧凑列表和生成按钮三态文案", () => {
   assert.match(styles, /\.rewrite-redraw-params\{[^}]*padding:var\(--space-4\)/);
 });
 
+test("逐秒重绘移除独立状态胶囊并仅由按钮反馈状态", () => {
+  const source = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
+  assert.doesNotMatch(source, /<span className=\{`rewrite-status \$\{segment\.redrawStatus\}`\}>\{statusText\[segment\.redrawStatus\]\}<\/span>/);
+  assert.match(source, /disabled=\{segment\.redrawStatus === "running"\}/);
+  assert.match(source, /<LoaderCircle className="spin" \/>/);
+});
+
 test("提取片段隐藏业务标题并展示时长和镜头范围", () => {
   const source = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
   assert.match(source, /segment\.time} · \{segment\.duration} · \{segment\.shots/);
