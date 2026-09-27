@@ -369,9 +369,16 @@ test("逐秒重绘使用紧凑列表和生成按钮三态文案", () => {
   const styles = readFileSync(new URL("./original-rewrite.css", import.meta.url), "utf8");
   assert.match(source, /segment\.redrawStatus === "running" \? "生成中" : segment\.redrawStatus === "done" \? "重新生成" : "生成"/);
   assert.match(source, /segment\.redrawStatus === "running" \? <LoaderCircle className="spin" \/> : <RefreshCw \/>/);
-  assert.match(styles, /\.rewrite-redraw-row\{[^}]*grid-template-columns:96px minmax\(0,1fr\) auto/);
+  assert.match(styles, /\.rewrite-redraw-row\{[^}]*grid-template-columns:96px minmax\(0,1fr\) 110px/);
   assert.match(styles, /\.rewrite-output-media\{[^}]*width:96px;height:96px/);
-  assert.match(styles, /\.rewrite-redraw-params\{[^}]*padding:var\(--space-4\)/);
+  assert.match(styles, /\.rewrite-redraw-params\{[^}]*padding:var\(--space-3\) var\(--space-4\)/);
+});
+
+test("逐秒重绘压缩固定参数列并为参考资源保留剩余空间", () => {
+  const styles = readFileSync(new URL("./original-rewrite.css", import.meta.url), "utf8");
+  assert.match(styles, /\.rewrite-redraw-row\{grid-template-columns:96px minmax\(0,1fr\) 110px\}/);
+  assert.match(styles, /\.rewrite-redraw-params\{grid-template-columns:90px 56px minmax\(0,1fr\);gap:var\(--space-3\);padding:var\(--space-3\) var\(--space-4\)\}/);
+  assert.match(styles, /\.rewrite-redraw-actions\{[^}]*padding:var\(--space-3\) var\(--space-4\) var\(--space-3\) 0/);
 });
 
 test("逐秒重绘移除独立状态胶囊并仅由按钮反馈状态", () => {
