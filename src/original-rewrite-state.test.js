@@ -398,8 +398,14 @@ test("逐秒重绘使用紧凑列表和生成按钮三态文案", () => {
 test("逐秒重绘压缩固定参数列并为参考资源保留剩余空间", () => {
   const styles = readFileSync(new URL("./original-rewrite.css", import.meta.url), "utf8");
   assert.match(styles, /\.rewrite-redraw-row\{grid-template-columns:96px minmax\(0,1fr\) 110px\}/);
-  assert.match(styles, /\.rewrite-redraw-params\{grid-template-columns:90px 56px minmax\(0,1fr\);gap:var\(--space-3\);padding:var\(--space-3\) var\(--space-4\)\}/);
+  assert.match(styles, /\.rewrite-redraw-params\{grid-template-columns:90px 56px minmax\(0,1fr\);align-self:start;gap:var\(--space-3\);padding:var\(--space-3\) var\(--space-4\) var\(--space-3\) 45px\}/);
   assert.match(styles, /\.rewrite-redraw-actions\{[^}]*padding:var\(--space-3\) var\(--space-4\) var\(--space-3\) 0/);
+});
+
+test("逐秒重绘参数区左侧留白四十五像素并统一顶部对齐", () => {
+  const styles = readFileSync(new URL("./original-rewrite.css", import.meta.url), "utf8");
+  assert.match(styles, /\.rewrite-redraw-params\{[^}]*align-self:start;[^}]*padding:var\(--space-3\) var\(--space-4\) var\(--space-3\) 45px/);
+  assert.match(styles, /\.rewrite-redraw-params>div\{[^}]*align-content:start/);
 });
 
 test("逐秒重绘移除独立状态胶囊并仅由按钮反馈状态", () => {
