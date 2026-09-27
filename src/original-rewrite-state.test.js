@@ -172,6 +172,12 @@ test("拆解框架沿用元素替换的摘要阅读与重新生成功能", () =>
   assert.match(source, /onRegenerate=/);
 });
 
+test("拆解框架摘要预览隐藏内部滚动条", () => {
+  const styles = readFileSync(new URL("./original-rewrite.css", import.meta.url), "utf8");
+  assert.match(styles, /\.rewrite-document-preview \.rewrite-markdown\{[^}]*overflow:hidden/);
+  assert.match(styles, /\.rewrite-markdown\{[^}]*overflow:auto/);
+});
+
 test("原视频逐秒分镜预览保持一比一比例且大图不受裁切", () => {
   const styles = readFileSync(new URL("./original-rewrite.css", import.meta.url), "utf8");
   assert.match(styles, /\.rewrite-storyboard-section \.rewrite-storyboard-card\{[^}]*aspect-ratio:1\/1[^}]*height:auto/);
