@@ -422,8 +422,8 @@ test("逐秒重绘复用片段故事面板的全选操作和黑色选中边框",
   assert.match(source, /className={`rewrite-redraw-row\$\{segment\.selected \? " selected" : ""\}`}/);
   assert.match(source, /toggleAllRewriteSelections/);
   assert.match(source, /toggleRewriteSelection/);
-  assert.match(styles, /\.rewrite-redraw-row\.selected\{border-color:var\(--color-bg-inverse\)\}/);
-  assert.match(styles, /\.rewrite-redraw-row\.selected::after\{[^}]*border:2px solid var\(--color-bg-inverse\)/);
+  assert.match(styles, /\.rewrite-redraw-row\.selected\{border:2px solid var\(--color-bg-inverse\)\}/);
+  assert.doesNotMatch(styles, /\.rewrite-redraw-row\.selected::after/);
 });
 
 test("逐秒重绘压缩固定参数列并为参考资源保留剩余空间", () => {
