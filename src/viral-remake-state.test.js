@@ -69,6 +69,12 @@ test("元素替换工作区对齐原片仿写的页面骨架", () => {
   assert.doesNotMatch(viralRemakeStyles, /\.remake-(?:image-viewer|video-modal|segment-modal)[^{]*\{[^}]*width: min\((?:1100|920|680)px/);
 });
 
+test("元素替换和原片仿写步骤导航统一使用圆角卡片", () => {
+  const rewriteStyles = readFileSync(new URL("./original-rewrite.css", import.meta.url), "utf8");
+  assert.match(viralRemakeStyles, /\.remake-steps \{[\s\S]*?border-radius: var\(--radius-card-sm\);[\s\S]*?background: var\(--color-bg-surface\);/);
+  assert.match(rewriteStyles, /\.rewrite-steps\{[^}]*border-radius:var\(--radius-card-sm\)[^}]*background:var\(--color-bg-surface\)/);
+});
+
 test("元素替换和原片仿写分别挂载独立草稿记录侧栏", () => {
   const rewriteSource = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
   const sidebarSource = readFileSync(new URL("./RemakeDraftSidebar.jsx", import.meta.url), "utf8");
