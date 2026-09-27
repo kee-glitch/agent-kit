@@ -8,12 +8,13 @@ import {
   isMentionClickOutside,
   keepWithinTextLimit,
   moveMentionSelection,
+  normalizeReferenceAssets,
   parseAssetReferenceHref,
   splitAssetMentions,
 } from "./viral-remake-state";
 
 const assetType = (asset) => asset ? asset.type || "image" : "missing";
-const assetSource = (asset) => asset?.preview || asset?.path;
+const assetSource = (asset) => asset?.url || asset?.preview || asset?.path;
 
 function MentionThumb({ asset, menu = false }) {
   const type = assetType(asset);
@@ -21,13 +22,15 @@ function MentionThumb({ asset, menu = false }) {
 }
 
 export function MentionEditor({ value, assets, onChange, maxLength = 500, ariaLabel = "替换需求", placeholder = "输入替换需求，输入 @ 引用左侧素材" }) {
+  const normalizedAssets = normalizeReferenceAssets(assets);
   const wrapRef = useRef(null);
   const editorRef = useRef(null);
+  const menuRef = useRef(null);
   const rangeRef = useRef(null);
   const [query, setQuery] = useState(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const [menuPosition, setMenuPosition] = useState({ left: 16, top: 16 });
-  const candidates = query === null ? [] : findMentionCandidates(assets, query);
+  const candidates = query === null ? [] : findMentionCandidates(normalizedAssets, query);
 
   const updateToken = (token, asset, reference) => {
     token.className = `remake-mention-token${asset ? "" : " missing"}`;
@@ -60,7 +63,7 @@ export function MentionEditor({ value, assets, onChange, maxLength = 500, ariaLa
     editor.replaceChildren();
     nextValue.split(/(@(?:图片|音频|视频)\d+)/g).filter(Boolean).forEach((part) => {
       if (!/^@(图片|音频|视频)\d+$/.test(part)) return editor.append(document.createTextNode(part));
-      const asset = assets.find((item) => `@${item.role}` === part);
+      const asset = normalizedAssets.find((item) => `@${item.role}` === part);
       editor.append(createToken(asset, part));
     });
   };
@@ -68,12 +71,12 @@ export function MentionEditor({ value, assets, onChange, maxLength = 500, ariaLa
   useEffect(() => {
     const editor = editorRef.current;
     if (!editor) return;
-    editor.querySelectorAll(".remake-mention-token").forEach((token) => updateToken(token, assets.find((item) => `@${item.role}` === token.dataset.reference), token.dataset.reference));
+    editor.querySelectorAll(".remake-mention-token").forEach((token) => updateToken(token, normalizedAssets.find((item) => `@${item.role}` === token.dataset.reference), token.dataset.reference));
   }, [assets]);
   useEffect(() => setActiveIndex(0), [query]);
   useEffect(() => {
     if (query === null) return undefined;
-    const dismiss = (event) => { if (isMentionClickOutside(wrapRef.current, event.target)) setQuery(null); };
+    const dismiss = (event) => { if (isMentionClickOutside(editorRef.current, menuRef.current, event.target)) setQuery(null); };
     document.addEventListener("pointerdown", dismiss);
     return () => document.removeEventListener("pointerdown", dismiss);
   }, [query]);
@@ -101,15 +104,15 @@ export function MentionEditor({ value, assets, onChange, maxLength = 500, ariaLa
     const before = range.cloneRange();
     before.selectNodeContents(editor);
     before.setEnd(range.endContainer, range.endOffset);
-    const match = before.toString().match(/@([^@\s]*)$/);
-    if (match && wrapRef.current) {
+    const showMenu = before.toString().endsWith("@");
+    if (showMenu && wrapRef.current) {
       const caret = range.cloneRange();
       caret.collapse(false);
       const caretRect = caret.getBoundingClientRect();
       const wrapRect = wrapRef.current.getBoundingClientRect();
       setMenuPosition(getMentionMenuPosition({ right: caretRect.right - wrapRect.left, bottom: caretRect.bottom - wrapRect.top }, wrapRef.current.clientWidth));
     }
-    setQuery(match ? match[1] : null);
+    setQuery(showMenu ? "" : null);
   };
   const insertMention = (asset) => {
     const range = rangeRef.current;
@@ -135,7 +138,7 @@ export function MentionEditor({ value, assets, onChange, maxLength = 500, ariaLa
     if (event.key === "Escape") { event.preventDefault(); setQuery(null); setActiveIndex(0); }
     if (query !== null && (event.key === "ArrowDown" || event.key === "ArrowUp")) { event.preventDefault(); setActiveIndex((index) => moveMentionSelection(index, event.key === "ArrowDown" ? 1 : -1, candidates.length)); }
     if (event.key === "Enter" && query !== null && candidates[activeIndex]) { event.preventDefault(); insertMention(candidates[activeIndex]); setActiveIndex(0); }
-  }} />{query !== null && <div className="remake-mention-menu" role="listbox" aria-label="引用素材" style={menuPosition}>{candidates.length ? candidates.map((asset, index) => <button type="button" role="option" id={`mention-option-${asset.id}`} aria-selected={index === activeIndex} className={index === activeIndex ? "active" : ""} key={asset.id} onMouseEnter={() => setActiveIndex(index)} onMouseDown={(event) => event.preventDefault()} onClick={() => insertMention(asset)}><MentionThumb asset={asset} menu /><span className="remake-mention-copy"><b>@{asset.role}</b><small>{assetType(asset) === "image" ? "图片" : assetType(asset) === "audio" ? "音频" : "视频"} · {asset.name}</small></span></button>) : <p>没有匹配的素材</p>}</div>}<span className="remake-request-count">{value.length}/{maxLength}</span></div>;
+  }} />{query !== null && <div ref={menuRef} className="remake-mention-menu" role="listbox" aria-label="引用素材" style={menuPosition}>{candidates.length ? candidates.map((asset, index) => <button type="button" role="option" id={`mention-option-${asset.id}`} aria-selected={index === activeIndex} className={index === activeIndex ? "active" : ""} key={asset.id} onMouseEnter={() => setActiveIndex(index)} onMouseDown={(event) => event.preventDefault()} onClick={() => insertMention(asset)}><MentionThumb asset={asset} menu /><span className="remake-mention-copy"><b>@{asset.role}</b><small>{assetType(asset) === "image" ? "图片" : assetType(asset) === "audio" ? "音频" : "视频"} · {asset.name}</small></span></button>) : <p>没有匹配的素材</p>}</div>}<span className="remake-request-count">{value.length}/{maxLength}</span></div>;
 }
 
 function remarkAssetMentions() {
@@ -152,9 +155,11 @@ function remarkAssetMentions() {
 }
 
 export function AssetMention({ asset, reference }) {
-  return <span className={`remake-mention-token${asset ? "" : " missing"}`} data-reference={`@${reference}`} title={asset?.name || "素材已删除"} aria-label={asset ? `@${reference}，${asset.name}` : `@${reference}，素材已删除`}><MentionThumb asset={asset} />@{reference}</span>;
+  const label = asset?.name || reference;
+  return <span className={`remake-mention-token${asset ? "" : " missing"}`} data-reference={`@${reference}`} title={asset ? label : "素材已删除"} aria-label={asset ? `@${reference}，${label}` : `@${reference}，素材已删除`}><MentionThumb asset={asset} />@{reference}</span>;
 }
 
 export function AssetMarkdown({ value, assets, className = "" }) {
-  return <div className={`remake-markdown-body ${className}`.trim()}><ReactMarkdown remarkPlugins={[remarkGfm, remarkAssetMentions]} components={{ a({ href, children }) { const role = parseAssetReferenceHref(href); return role ? <AssetMention asset={assets.find((item) => item.role === role)} reference={role} /> : <a href={href}>{children}</a>; } }}>{value}</ReactMarkdown></div>;
+  const normalizedAssets = normalizeReferenceAssets(assets);
+  return <div className={`remake-markdown-body ${className}`.trim()}><ReactMarkdown remarkPlugins={[remarkGfm, remarkAssetMentions]} components={{ a({ href, children }) { const role = parseAssetReferenceHref(href); return role ? <AssetMention asset={normalizedAssets.find((item) => item.role === role)} reference={role} /> : <a href={href}>{children}</a>; } }}>{value}</ReactMarkdown></div>;
 }

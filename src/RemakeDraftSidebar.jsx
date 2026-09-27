@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { FileVideo, MoreHorizontal, Pencil, Pin, Plus, Search, Trash2 } from "lucide-react";
-import { REWRITE_DRAFTS_KEY, createDraftCollection, deleteDraft, filterDrafts, persistDrafts, saveDraft, toggleDraftPin, updateDraftTitle } from "./remake-drafts-state";
+import { REWRITE_DRAFTS_KEY, createDraftCollection, deleteDraft, filterDrafts, getDraftModeLabel, persistDrafts, saveDraft, toggleDraftPin, updateDraftTitle } from "./remake-drafts-state";
 
 export function useRemakeDrafts(storageKey, mode) {
   const [drafts, setDrafts] = useState(() => createDraftCollection(localStorage.getItem(storageKey) || []));
@@ -45,7 +45,7 @@ export default function RemakeDraftSidebar({ storageKey, title, manager, onNew, 
       {shown.map((draft) => <article className={manager.activeId === draft.id ? "active" : ""} key={draft.id}>
         <button className="remake-draft-main" onClick={() => { manager.setActiveId(draft.id); onSelect(draft); }}>
           <span className="remake-draft-thumb"><FileVideo /></span>
-          <span>{renamingId === draft.id ? <input autoFocus value={editTitle} aria-label="重命名草稿" onClick={(event) => event.stopPropagation()} onChange={(event) => setEditTitle(event.target.value)} onBlur={() => finishRename(draft.id)} onKeyDown={(event) => { if (event.key === "Enter") finishRename(draft.id); if (event.key === "Escape") setRenamingId(null); }} /> : <b>{draft.pinned && <Pin />}{draft.title}</b>}<small>{draft.mode === "rewrite" ? "原片仿写" : "元素替换"}<i />{draft.updatedAt === "刚刚" ? "刚刚" : new Date(draft.updatedAt).toLocaleString("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}</small></span>
+          <span>{renamingId === draft.id ? <input autoFocus value={editTitle} aria-label="重命名草稿" onClick={(event) => event.stopPropagation()} onChange={(event) => setEditTitle(event.target.value)} onBlur={() => finishRename(draft.id)} onKeyDown={(event) => { if (event.key === "Enter") finishRename(draft.id); if (event.key === "Escape") setRenamingId(null); }} /> : <b>{draft.pinned && <Pin />}{draft.title}</b>}<small>{getDraftModeLabel(draft.mode)}<i />{draft.updatedAt === "刚刚" ? "刚刚" : new Date(draft.updatedAt).toLocaleString("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}</small></span>
         </button>
         <button className="remake-draft-more" aria-label={`${draft.title}更多操作`} onClick={() => setMenuId(menuId === draft.id ? null : draft.id)}><MoreHorizontal /></button>
         {menuId === draft.id && <div className="remake-draft-menu" ref={menuRef}><button onClick={() => { manager.togglePin(draft.id); setMenuId(null); }}><Pin />{draft.pinned ? "取消置顶" : "置顶"}</button><button onClick={() => { setEditTitle(draft.title); setRenamingId(draft.id); setMenuId(null); }}><Pencil />重命名</button><button className="danger" onClick={() => { manager.remove(draft.id); setMenuId(null); if (manager.activeId === draft.id) onNew(); }}><Trash2 />删除</button></div>}

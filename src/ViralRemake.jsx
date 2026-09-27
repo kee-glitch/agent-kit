@@ -19,25 +19,19 @@ import {
   LoaderCircle,
   Lock,
   Maximize2,
-  Package,
-  Pill,
   Play,
   Plus,
   RefreshCw,
-  RotateCcw,
   Save,
   Sparkles,
   Trash2,
   Upload,
-  UserRound,
   Video,
   WandSparkles,
   X,
 } from "lucide-react";
 import {
   breakdownText,
-  demoAssets,
-  demoRequest,
   modes,
   originalBoards,
   originalReplacementResources,
@@ -49,8 +43,8 @@ import {
 } from "./viral-remake-data";
 import {
   ASPECT_RATIOS,
-  BOUND_ASSET_ACCEPT,
   GENERAL_ASSET_ACCEPT,
+  OUTPUT_QUALITIES,
   STORAGE_KEY,
   getStorageKey,
   addSequencedAssets,
@@ -75,15 +69,17 @@ import {
   replaceSequencedAsset,
   setCurrentStep,
   setGenerationStatus,
+  setBoundReplacementAsset,
   replaceVideo,
-  updateDocument,
   updateReplacementAsset,
-  upsertBoundReplacementAsset,
 } from "./viral-remake-state";
+import BoundReplacementRow from "./BoundReplacementRow";
+import VideoPreviewModal from "./VideoPreviewModal";
 import "./viral-remake.css";
 import OriginalRewrite from "./OriginalRewrite";
 import RemakeDraftSidebar, { useRemakeDrafts } from "./RemakeDraftSidebar";
-import { ELEMENT_DRAFTS_KEY } from "./remake-drafts-state";
+import { ELEMENT_DRAFTS_KEY, STRUCTURE_DRAFTS_KEY } from "./remake-drafts-state";
+import { createReplacementAssetsSnapshot, createReplacementResultLog, createVideoBreakdownLog, logRemakeFlow } from "./remake-flow-debug";
 
 const MODELS = [
   "seedance 2.0 mini",
@@ -166,7 +162,7 @@ function ModeSelection({ onSelect, notify }) {
   );
 }
 
-function WorkflowHeader({ project, mode, onBack, onStep, onSave, onReset }) {
+function WorkflowHeader({ project, mode, onBack, onStep, onSave }) {
   return (
     <>
       <header className="remake-project-header">
@@ -180,10 +176,6 @@ function WorkflowHeader({ project, mode, onBack, onStep, onSave, onReset }) {
           </div>
         </div>
         <div className="remake-header-actions">
-          <button onClick={onReset}>
-            <RotateCcw />
-            重新开始
-          </button>
           <button className="primary" onClick={onSave}>
             <Save />
             保存草稿
@@ -288,54 +280,6 @@ function ReplacementAssetRow({ asset, onReplace, onRemove }) {
   );
 }
 
-function BoundReplacementRow({ resource, asset, onChoose, onClear }) {
-  const ResourceIcon =
-    resource.type === "person"
-      ? UserRound
-      : resource.type === "detail"
-        ? Pill
-        : Package;
-  const UploadedIcon =
-    asset?.type === "audio" ? AudioLines : asset?.type === "image" ? ImageIcon : Video;
-
-  return (
-    <article className="remake-bound-resource-row">
-      <label
-        className={`remake-bound-resource-media${asset ? " has-asset" : ""}`}
-        aria-label={asset ? `替换${resource.title}素材` : `上传${resource.title}素材`}
-      >
-        <input type="file" accept={BOUND_ASSET_ACCEPT} onChange={onChoose} />
-        {asset?.type === "image" && (asset.preview || asset.path) ? (
-          <img src={asset.preview || asset.path} alt="" />
-        ) : asset?.type === "video" && asset.preview ? (
-          <video src={asset.preview} muted />
-        ) : asset ? (
-          <UploadedIcon />
-        ) : (
-          <ResourceIcon />
-        )}
-      </label>
-      <div className="remake-bound-resource-copy">
-        <b>{resource.title}</b>
-        <p>{resource.description}</p>
-      </div>
-      {asset ? (
-        <button type="button" className="remake-bound-clear" onClick={onClear}>
-          <Trash2 />
-          清空
-        </button>
-      ) : (
-        <label className="remake-bound-upload-action">
-          <input type="file" accept={BOUND_ASSET_ACCEPT} onChange={onChoose} />
-          <Upload />
-          上传
-        </label>
-      )}
-    </article>
-  );
-}
-
-
 function StepOne({ project, setProject, onDemo, onNext, notify }) {
   const chooseVideo = (event) => {
     const file = event.target.files?.[0];
@@ -439,6 +383,23 @@ function StepOne({ project, setProject, onDemo, onNext, notify }) {
                 ))}
               </select>
             </div>
+            <div className="remake-field">
+              <label htmlFor="output-quality">清晰度</label>
+              <select
+                id="output-quality"
+                value={project.quality}
+                onChange={(event) =>
+                  setProject((value) => ({
+                    ...value,
+                    quality: event.target.value,
+                  }))
+                }
+              >
+                {OUTPUT_QUALITIES.map((quality) => (
+                  <option key={quality}>{quality}</option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
       </div>
@@ -505,13 +466,10 @@ function DocumentEditor({
   title,
   value,
   assets,
-  onChange,
-  onSave,
   onRegenerate,
   regenerating,
 }) {
   const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState(false);
   const triggerRef = useRef(null);
   const closeRef = useRef(null);
   const dialogRef = useRef(null);
@@ -540,62 +498,36 @@ function DocumentEditor({
             </div>
           </div>
           <div>
-            <button
-              type="button"
-              aria-label={editing ? `预览${title}` : `编辑${title}`}
-              onClick={() => setEditing((value) => !value)}
-            >
-              <FilePenLine />
-              {editing ? "预览" : "编辑"}
-            </button>
             <button onClick={onRegenerate} disabled={regenerating}>
               {regenerating ? <LoaderCircle className="spin" /> : <RefreshCw />}
               {regenerating ? "生成中" : "重新生成"}
             </button>
-            <button
-              className="primary"
-              onClick={() => {
-                onSave();
-                setEditing(false);
-              }}
-            >
-              <Save />
-              保存
-            </button>
           </div>
         </header>
-        {editing ? (
-          <textarea
-            aria-label="故事面板正文"
+        <div
+          ref={triggerRef}
+          className="remake-storyboard-trigger"
+          role="button"
+          tabIndex={0}
+          aria-label={`阅读完整${title}`}
+          onClick={() => setOpen(true)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              setOpen(true);
+            }
+          }}
+        >
+          <AssetMarkdown
             value={value}
-            onChange={(event) => onChange(event.target.value)}
+            assets={assets}
+            className="remake-storyboard-preview"
           />
-        ) : (
-          <div
-            ref={triggerRef}
-            className="remake-storyboard-trigger"
-            role="button"
-            tabIndex={0}
-            aria-label={`阅读完整${title}`}
-            onClick={() => setOpen(true)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                setOpen(true);
-              }
-            }}
-          >
-            <AssetMarkdown
-              value={value}
-              assets={assets}
-              className="remake-storyboard-preview"
-            />
-            <span className="remake-storyboard-read-more">
-              <Maximize2 />
-              点击阅读完整内容
-            </span>
-          </div>
-        )}
+          <span className="remake-storyboard-read-more">
+            <Maximize2 />
+            点击阅读完整内容
+          </span>
+        </div>
       </article>
       {open && (
         <div
@@ -765,8 +697,25 @@ function MarkdownDocumentPreview({ title, meta, value, onRegenerate }) {
 
 function StepTwo({ project, mode, setProject, onNext, onOpen, notify }) {
   const value = project.documents.breakdown ?? breakdownText;
+  const replacementResources = mode === "structure"
+    ? structureDemo.replacementResources
+    : originalReplacementResources;
   const latestBoundRequestRef = useRef(new Map());
   const latestAssetRequestRef = useRef(new Map());
+  const projectRef = useRef(project);
+  projectRef.current = project;
+  const commitAssets = (action, updater) => {
+    const next = updater(projectRef.current);
+    projectRef.current = next;
+    setProject(next);
+    logRemakeFlow(
+      mode,
+      2,
+      "替换素材变更",
+      { 操作: action },
+      createReplacementAssetsSnapshot(replacementResources, next.assets),
+    );
+  };
   const makeAssetId = () =>
     globalThis.crypto?.randomUUID?.() || `asset-${Date.now()}`;
   const addAssets = async (event) => {
@@ -781,9 +730,10 @@ function StepTwo({ project, mode, setProject, onNext, onOpen, notify }) {
         preview: await readFile(file),
       })),
     );
-    setProject((current) => addSequencedAssets(current, added));
+    commitAssets("新增其他素材", (current) => addSequencedAssets(current, added));
   };
-  const chooseBoundAsset = async (sourceId, role, event) => {
+  const chooseBoundAsset = async (resource, event) => {
+    const { id: sourceId, role } = resource;
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
@@ -798,17 +748,17 @@ function StepTwo({ project, mode, setProject, onNext, onOpen, notify }) {
       name: file.name,
       preview,
     };
-    setProject((current) => upsertBoundReplacementAsset(current, addition));
+    commitAssets("上传替换素材", (current) => setBoundReplacementAsset(current, resource, addition));
   };
-  const clearBoundAsset = (sourceId, assetId) => {
-    beginLatestRequest(latestBoundRequestRef.current, sourceId);
-    removeAsset(assetId);
+  const clearBoundAsset = (resource) => {
+    beginLatestRequest(latestBoundRequestRef.current, resource.id);
+    commitAssets("清空替换素材", (current) => setBoundReplacementAsset(current, resource, null));
   };
   const replaceAsset = async (id, file) => {
     const request = beginLatestRequest(latestAssetRequestRef.current, id);
     const preview = await readFile(file);
     if (!isLatestRequest(latestAssetRequestRef.current, id, request)) return;
-    setProject((currentProject) => {
+    commitAssets("替换其他素材", (currentProject) => {
       const current = currentProject.assets.find((asset) => asset.id === id);
       if (!current) return currentProject;
       return replaceSequencedAsset(currentProject, id, {
@@ -819,9 +769,9 @@ function StepTwo({ project, mode, setProject, onNext, onOpen, notify }) {
       });
     });
   };
-  const removeAsset = (id) => {
+  const removeAsset = (id, action = "删除其他素材") => {
     beginLatestRequest(latestAssetRequestRef.current, id);
-    setProject((current) => removeReplacementAsset(current, id));
+    commitAssets(action, (current) => removeReplacementAsset(current, id));
   };
   return (
     <section className="remake-stage">
@@ -877,15 +827,15 @@ function StepTwo({ project, mode, setProject, onNext, onOpen, notify }) {
           </div>
           <div className="remake-replacement-columns">
             <h3 className="remake-replacement-list-heading">上传替换素材</h3>
-            {originalReplacementResources.map((resource) => {
+            {replacementResources.map((resource) => {
               const asset = findBoundReplacementAsset(project.assets, resource.id);
               return (
                 <BoundReplacementRow
                   key={resource.id}
                   resource={resource}
                   asset={asset}
-                  onChoose={(event) => chooseBoundAsset(resource.id, resource.role, event)}
-                  onClear={() => asset && clearBoundAsset(resource.id, asset.id)}
+                  onChoose={(event) => chooseBoundAsset(resource, event)}
+                  onClear={() => asset && clearBoundAsset(resource)}
                 />
               );
             })}
@@ -915,7 +865,8 @@ function StepTwo({ project, mode, setProject, onNext, onOpen, notify }) {
             <span><AtSign /></span>
             <div>
               <h2>
-                替换需求 <span className="remake-optional-label">非必填</span>
+                {mode === "structure" ? "结构仿写需求" : "替换需求"}{" "}
+                <span className="remake-optional-label">非必填</span>
               </h2>
                 <p>输入 @ 可引用已上传的素材</p>
             </div>
@@ -1008,10 +959,6 @@ function StepThree({
         title={mode === "structure" ? "结构仿写故事面板" : "替换后的故事面板"}
         value={value}
         assets={project.assets}
-        onChange={(nextValue) =>
-          setProject((value) => updateDocument(value, "storyboard", nextValue))
-        }
-        onSave={save}
         onRegenerate={regenerate}
         regenerating={regenerating}
       />
@@ -1046,8 +993,6 @@ function SegmentDocumentCard({
   const [videoOpen, setVideoOpen] = useState(false);
   const returnFocusRef = useRef(null);
   const closeRef = useRef(null);
-  const videoCloseRef = useRef(null);
-  const videoReturnFocusRef = useRef(null);
   const openModal = (event) => {
     returnFocusRef.current = event.currentTarget;
     setOpen(true);
@@ -1068,22 +1013,6 @@ function SegmentDocumentCard({
       returnFocusRef.current?.focus();
     };
   }, [open]);
-
-  useEffect(() => {
-    if (!videoOpen) return undefined;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    videoCloseRef.current?.focus();
-    const closeOnEscape = (event) => {
-      if (event.key === "Escape") setVideoOpen(false);
-    };
-    document.addEventListener("keydown", closeOnEscape);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      document.removeEventListener("keydown", closeOnEscape);
-      videoReturnFocusRef.current?.focus();
-    };
-  }, [videoOpen]);
 
   return (
     <article className={`remake-segment-card${selected ? " selected" : ""}`}>
@@ -1114,10 +1043,7 @@ function SegmentDocumentCard({
             <button
               type="button"
               className="remake-action-button secondary"
-              onClick={(event) => {
-                videoReturnFocusRef.current = event.currentTarget;
-                setVideoOpen(true);
-              }}
+              onClick={() => setVideoOpen(true)}
             >
               <Play /> 查看视频
             </button>
@@ -1216,67 +1142,29 @@ function SegmentDocumentCard({
         </article>
         </div>
       )}
-      {videoOpen && (
-        <div
-          className="remake-modal"
-          role="dialog"
-          aria-modal="true"
-          aria-label={`${segment.title}生成视频`}
-          onClick={(event) => {
-            if (isBackdropSelfClick(event.target, event.currentTarget)) setVideoOpen(false);
-          }}
-          onKeyDown={(event) => {
-            if (event.key !== "Tab") return;
-            const focusable = Array.from(
-              event.currentTarget.querySelectorAll(
-                'button:not([disabled]), video[controls], [tabindex]:not([tabindex="-1"])',
-              ),
-            ).filter((element) => !element.disabled);
-            const target = getTrappedFocusTarget(
-              focusable,
-              document.activeElement,
-              event.shiftKey,
-            );
-            if (!target) return;
-            event.preventDefault();
-            target.focus();
-          }}
-        >
-        <article className="remake-video-modal">
-          <header className="remake-segment-modal-header">
-            <span>0{index + 1}</span>
-            <h2>{segment.title}</h2>
-            <p>{segment.time} · {segment.duration} · {segment.shots}</p>
-          </header>
-          <div className="remake-modal-body">
-            <video controls autoPlay src="./viral-remake-demo/template.mp4" />
-          </div>
-          <footer className="remake-modal-footer">
-            <button
-              ref={videoCloseRef}
-              className="remake-modal-close"
-              onClick={() => setVideoOpen(false)}
-              aria-label="关闭视频"
-            >
-              关闭
-            </button>
-          </footer>
-        </article>
-        </div>
-      )}
+      <VideoPreviewModal
+        open={videoOpen}
+        onClose={() => setVideoOpen(false)}
+        src={segment.video || "./viral-remake-demo/template.mp4"}
+        title={segment.title}
+        badge={`0${index + 1}`}
+        subtitle={`${segment.time} · ${segment.duration} · ${segment.shots}`}
+      />
     </article>
   );
 }
 
 function StepFour({
   project,
+  mode,
   setProject,
   notify,
 }) {
+  const activeSegments = mode === "structure" ? structureDemo.segments : segmentDocuments;
   const timers = useRef(new Map());
   const inFlight = useRef(new Set());
   const [selectedSegments, setSelectedSegments] = useState(
-    () => new Set(segmentDocuments.map((segment) => segment.id)),
+    () => new Set(activeSegments.map((segment) => segment.id)),
   );
 
   useEffect(() => () => {
@@ -1293,19 +1181,36 @@ function StepFour({
       return;
     }
     started.forEach((id) => inFlight.current.add(id));
-    setProject((value) => queueGeneration(value, started).project);
+    setProject((value) => {
+      const result = queueGeneration(value, started).project;
+      logRemakeFlow(mode, 4, "生成视频", {
+        model: value.model,
+        aspectRatio: value.aspectRatio,
+        quality: value.quality,
+        assets: value.assets,
+        segments: activeSegments.filter((segment) => started.includes(segment.id)),
+      }, { generation: result.generation });
+      return result;
+    });
     started.forEach((id, index) => {
       const timer = window.setTimeout(() => {
         inFlight.current.delete(id);
         timers.current.delete(id);
-        setProject((value) => setGenerationStatus(value, id, "done"));
-        notify(`${segmentDocuments.find((item) => item.id === id)?.title}生成完成`);
+        setProject((value) => {
+          const result = setGenerationStatus(value, id, "done");
+          logRemakeFlow(mode, 4, "视频生成完成", { segmentId: id }, {
+            segmentId: id,
+            status: result.generation[id],
+          });
+          return result;
+        });
+        notify(`${activeSegments.find((item) => item.id === id)?.title}生成完成`);
       }, 1400 + index * 220);
       timers.current.set(id, timer);
     });
   };
 
-  const availableSegmentIds = segmentDocuments.map((segment) => segment.id);
+  const availableSegmentIds = activeSegments.map((segment) => segment.id);
   const selectedIds = getSelectedSegmentIds(selectedSegments, availableSegmentIds);
   const allSelected = selectedIds.length === availableSegmentIds.length;
   const batchRunning = selectedIds.some(
@@ -1354,7 +1259,7 @@ function StepFour({
         </div>
       </div>
       <div className="remake-segment-editors">
-        {segmentDocuments.map((segment, index) => {
+        {activeSegments.map((segment, index) => {
           const key = segment.id;
           const value = project.documents[key] ?? segment.content;
           return (
@@ -1395,6 +1300,7 @@ export default function ViralRemake() {
   const [segmentDetail, setSegmentDetail] = useState(null);
   const [regenerating, setRegenerating] = useState(false);
   const elementDrafts = useRemakeDrafts(ELEMENT_DRAFTS_KEY, "element");
+  const structureDrafts = useRemakeDrafts(STRUCTURE_DRAFTS_KEY, "structure");
   const timer = useRef(null);
   const viewerCloseRef = useRef(null);
   const viewerReturnFocusRef = useRef(null);
@@ -1443,24 +1349,60 @@ export default function ViralRemake() {
   const save = () => {
     persistProject(localStorage, project, getStorageKey(mode));
     if (mode === "element") elementDrafts.save(JSON.parse(serializeProject(project)));
+    if (mode === "structure") structureDrafts.save(JSON.parse(serializeProject(project)));
     notify("草稿已保存到当前浏览器");
   };
-  const next = () => setProject((value) => advanceStep(value));
+  const next = () => {
+    const value = project;
+    const operations = { 1: "拆解视频", 2: "生成替换结果", 3: "提取片段" };
+    const result = advanceStep(value);
+    const breakdownLog = createVideoBreakdownLog({
+      videoName: value.videoName,
+      videoPath: value.videoPath,
+      model: value.model,
+      aspectRatio: value.aspectRatio,
+      quality: value.quality,
+      breakdown: result.documents.breakdown,
+      scriptResources: mode === "structure" ? structureDemo.replacementResources : originalReplacementResources,
+      storyboardImages: mode === "structure" ? [structureDemo.referenceImage] : originalBoards,
+    });
+    const replacementResultLog = createReplacementResultLog({
+      originalImages: mode === "structure" ? [] : originalBoards,
+      replacedImages: mode === "structure" ? [] : replacedBoards,
+      request: value.request,
+      breakdown: value.documents.breakdown,
+      storyboard: result.documents.storyboard,
+      assets: value.assets,
+    });
+    const inputs = {
+      1: breakdownLog.input,
+      2: replacementResultLog,
+      3: { storyboard: value.documents.storyboard, assets: value.assets, model: value.model, aspectRatio: value.aspectRatio, quality: value.quality },
+    };
+    const outputs = {
+      1: breakdownLog.output,
+      2: undefined,
+      3: { segments: (mode === "structure" ? structureDemo.segments : segmentDocuments).map((segment) => ({ ...segment, content: result.documents[segment.id] || segment.content })) },
+    };
+    logRemakeFlow(mode, value.step, operations[value.step] || "下一步", inputs[value.step], outputs[value.step]);
+    setProject(result);
+  };
   const loadDemo = () => {
     setProject((value) => ({
       ...value,
       videoName: "需要复刻的模板视频.mp4",
-      request: demoRequest,
+      request: "",
       model: "seedance 2.0",
       aspectRatio: mode === "structure" ? structureDemo.aspectRatio : value.aspectRatio,
-      assets: demoAssets,
-      assetCounters: { image: 3, audio: 0, video: 0 },
+      assets: [],
+      assetCounters: { image: mode === "structure" ? 4 : 3, audio: 0, video: 0 },
       documents: {
         ...value.documents,
         breakdown: breakdownText,
-        storyboard: storyboardText,
+        storyboard: mode === "structure" ? structureDemo.storyboard : storyboardText,
         ...Object.fromEntries(
-          segmentDocuments.map((item) => [item.id, item.content]),
+          (mode === "structure" ? structureDemo.segments : segmentDocuments)
+            .map((item) => [item.id, item.content]),
         ),
       },
     }));
@@ -1472,15 +1414,13 @@ export default function ViralRemake() {
     setRegenerating(true);
     timer.current = window.setTimeout(() => {
       setRegenerating(false);
+      logRemakeFlow(mode, 3, "重新生成故事面板", {
+        storyboard: project.documents.storyboard,
+        request: project.request,
+        assets: project.assets,
+      }, { storyboard: project.documents.storyboard });
       notify("已生成一个新版本，原编辑内容已保留");
     }, 1300);
-  };
-  const reset = () => {
-    if (!window.confirm("确定清空当前草稿并重新开始吗？")) return;
-    localStorage.removeItem(getStorageKey(mode));
-    setProject(createInitialProject());
-    setMode(null);
-    notify("项目已重置");
   };
   return (
     <main className="viral-remake-shell">
@@ -1494,6 +1434,7 @@ export default function ViralRemake() {
       ) : (
         <div className="remake-draft-layout">
           {mode === "element" && <RemakeDraftSidebar storageKey={ELEMENT_DRAFTS_KEY} title="元素替换任务记录" manager={elementDrafts} onNew={() => { elementDrafts.setActiveId(null); setProject(createInitialProject()); }} onSelect={(draft) => setProject(createInitialProject(draft.project))} />}
+          {mode === "structure" && <RemakeDraftSidebar storageKey={STRUCTURE_DRAFTS_KEY} title="结构仿写任务记录" manager={structureDrafts} onNew={() => { structureDrafts.setActiveId(null); setProject(createInitialProject()); }} onSelect={(draft) => setProject(createInitialProject(draft.project))} />}
           <div className="remake-workspace">
           <WorkflowHeader
             project={project}
@@ -1503,7 +1444,6 @@ export default function ViralRemake() {
               setProject((value) => setCurrentStep(value, step))
             }
             onSave={save}
-            onReset={reset}
           />
           {project.step === 1 && (
             <StepOne
@@ -1539,6 +1479,7 @@ export default function ViralRemake() {
           {project.step === 4 && (
           <StepFour
             project={project}
+            mode={mode}
             setProject={setProject}
             notify={notify}
           />

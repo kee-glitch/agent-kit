@@ -12,6 +12,7 @@ const EMPTY_PROJECT = {
   request: "",
   model: "seedance 2.0",
   aspectRatio: "9:16",
+  quality: "1080P",
   assets: [],
   assetCounters: { image: 3, audio: 0, video: 0 },
   documents: {},
@@ -27,6 +28,8 @@ export const ASPECT_RATIOS = [
   "1:1",
   "adaptive",
 ];
+
+export const OUTPUT_QUALITIES = ["720P", "1080P"];
 
 const MEDIA_LABELS = { image: "图片", audio: "音频", video: "视频" };
 
@@ -158,8 +161,8 @@ export function getMentionMenuPosition(
   };
 }
 
-export function isMentionClickOutside(container, target) {
-  return Boolean(container && !container.contains(target));
+export function isMentionClickOutside(editor, menu, target) {
+  return Boolean(editor && menu && !menu.contains(target));
 }
 
 export function isBackdropSelfClick(target, currentTarget) {
@@ -296,6 +299,9 @@ export function createInitialProject(saved = {}) {
     aspectRatio: ASPECT_RATIOS.includes(value.aspectRatio)
       ? value.aspectRatio
       : EMPTY_PROJECT.aspectRatio,
+    quality: OUTPUT_QUALITIES.includes(value.quality)
+      ? value.quality
+      : EMPTY_PROJECT.quality,
     assets,
     assetCounters,
     documents,
@@ -453,4 +459,37 @@ export function serializeProject(project) {
 
 export function persistProject(storage, project, storageKey = STORAGE_KEY) {
   storage.setItem(storageKey, serializeProject(project));
+}
+
+export function normalizeReferenceAssets(assets) {
+  if (Array.isArray(assets)) return assets;
+  if (!assets || typeof assets !== "object") return [];
+  return Object.entries(assets).flatMap(([role, asset]) =>
+    asset && typeof asset === "object" && !Array.isArray(asset)
+      ? [{ ...asset, role }]
+      : [],
+  );
+}
+
+export function setBoundReplacementAsset(project, resource, addition) {
+  const replacementPrefix = `[${resource.title}]替换成@`;
+  const referencePrefix = `[${resource.title}]@`;
+  const prefix = resource.type === "style" ? referencePrefix : replacementPrefix;
+  const requestLines = String(project.request || "")
+    .split(/\r?\n/u)
+    .filter((line) => ![replacementPrefix, referencePrefix].some((item) => line.trim().startsWith(item)));
+  let nextProject = project;
+
+  if (addition) {
+    nextProject = upsertBoundReplacementAsset(project, addition);
+    requestLines.push(`${prefix}${addition.role}`);
+  } else {
+    const existing = findBoundReplacementAsset(project.assets, resource.id);
+    if (existing) nextProject = removeReplacementAsset(project, existing.id);
+  }
+
+  return {
+    ...nextProject,
+    request: requestLines.join("\n").trim(),
+  };
 }

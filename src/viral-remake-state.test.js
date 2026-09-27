@@ -1,9 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import {
   BOUND_ASSET_ACCEPT,
   GENERAL_ASSET_ACCEPT,
+  OUTPUT_QUALITIES,
   addReplacementAsset,
   beginLatestRequest,
   advanceStep,
@@ -21,6 +22,7 @@ import {
   getSelectedSegmentIds,
   toggleAllSegmentSelections,
   nextAssetLabel,
+  normalizeReferenceAssets,
   findMentionCandidates,
   findBoundReplacementAsset,
   getMentionMenuPosition,
@@ -37,6 +39,7 @@ import {
   updateReplacementAsset,
   replaceSequencedAsset,
   upsertBoundReplacementAsset,
+  setBoundReplacementAsset,
   updateDocument,
   getStorageKey,
 } from "./viral-remake-state.js";
@@ -61,6 +64,14 @@ const viralRemakeStyles = readFileSync(
   new URL("./viral-remake.css", import.meta.url),
   "utf8",
 );
+const assetMentionsSource = readFileSync(
+  new URL("./AssetMentions.jsx", import.meta.url),
+  "utf8",
+);
+const videoPreviewModalSource = readFileSync(
+  new URL("./VideoPreviewModal.jsx", import.meta.url),
+  "utf8",
+);
 
 test("结构仿写作为独立模式开放并使用隔离草稿", () => {
   const structureMode = modes.find((mode) => mode.id === "structure");
@@ -75,6 +86,92 @@ test("结构仿写作为独立模式开放并使用隔离草稿", () => {
   );
   assert.equal(structureDemo.aspectRatio, "1:1");
   assert.equal(structureDemo.referenceImage.endsWith("/structure-storyboard.jpg"), true);
+});
+
+test("结构仿写 Demo 提供图片4风格参考及专属需求", () => {
+  assert.deepEqual(structureDemo.replacementResources.at(-1), {
+    id: "style-reference",
+    type: "style",
+    role: "图片4",
+    title: "风格参考",
+    description:
+      "提取叙事骨架：开场钩子、镜头顺序、剪辑节奏、分镜逻辑；可改写画面、人物、台词、场景。",
+  });
+  assert.deepEqual(structureDemo.assets.at(-1), {
+    id: "style-reference",
+    name: "结构分镜参考.jpg",
+    role: "图片4",
+    type: "image",
+    sourceId: "style-reference",
+    path: "./viral-remake-demo/structure-storyboard.jpg",
+  });
+  assert.match(structureDemo.request, /@图片4/);
+});
+
+test("结构仿写第三步与第四步共享同一份三片段故事面板", () => {
+  assert.match(structureDemo.storyboard, /### 1\. 风格统一约束/);
+  assert.match(structureDemo.storyboard, /## 片段一｜15秒｜反差钩子、生活痛点共情与软糖方案亮相/);
+  assert.match(structureDemo.storyboard, /#### 镜头 11｜条件式库存CTA/);
+  assert.deepEqual(
+    structureDemo.segments.map(({ time, duration, shots }) => ({ time, duration, shots })),
+    [
+      { time: "00:00–00:15", duration: "15s", shots: "镜头 01–04" },
+      { time: "00:15–00:30", duration: "15s", shots: "镜头 05–08" },
+      { time: "00:30–00:41", duration: "11s", shots: "镜头 09–11" },
+    ],
+  );
+  structureDemo.segments.forEach((segment) => {
+    const segmentOnly = segment.content.slice(structureDemo.styleGuide.length).trim();
+    assert.ok(structureDemo.storyboard.includes(segmentOnly));
+    assert.match(segment.content, /### 3\. 片段约束/);
+  });
+});
+
+test("结构仿写素材编号与新故事面板引用保持一致", () => {
+  assert.deepEqual(
+    Object.fromEntries(structureDemo.assets.map((asset) => [asset.role, asset.sourceId])),
+    {
+      图片1: "product-detail",
+      图片2: "product-bottle",
+      图片3: "person",
+      图片4: "style-reference",
+    },
+  );
+});
+
+test("结构仿写卧室风格统一引用图片4", () => {
+  assert.match(structureDemo.storyboard, /@图片4 \[真人自拍视频与上方对比画中画版式\]/);
+  assert.doesNotMatch(structureDemo.storyboard, /@图片3/);
+  structureDemo.segments.forEach((segment) => {
+    assert.doesNotMatch(segment.content, /@图片3/);
+  });
+});
+
+test("结构仿写第四步在每个片段内展示风格统一约束", () => {
+  assert.match(structureDemo.styleGuide, /### 1\. 风格统一约束/);
+  assert.match(structureDemo.styleGuide, /TikTok短视频电商｜9:16竖屏｜41秒/);
+  assert.doesNotMatch(structureDemo.styleGuide, /## 片段一/);
+  structureDemo.segments.forEach((segment) => {
+    assert.equal(segment.content.startsWith(structureDemo.styleGuide), true);
+  });
+  assert.doesNotMatch(viralRemakeSource, /className="remake-shared-style-guide"/);
+});
+
+test("结构仿写三个片段分别绑定独立 Demo 视频", () => {
+  assert.deepEqual(
+    structureDemo.segments.map((segment) => segment.video),
+    [
+      "./viral-remake-demo/structure-segment-1.mp4",
+      "./viral-remake-demo/structure-segment-2.mp4",
+      "./viral-remake-demo/structure-segment-3.mp4",
+    ],
+  );
+  structureDemo.segments.forEach((segment) => {
+    assert.equal(
+      existsSync(new URL(`../public/${segment.video.slice(2)}`, import.meta.url)),
+      true,
+    );
+  });
 });
 
 test("结构仿写草稿保存到指定键而不覆盖元素替换", () => {
@@ -92,6 +189,24 @@ test("结构仿写草稿保存到指定键而不覆盖元素替换", () => {
     createInitialProject(values.get(getStorageKey("structure"))).videoName,
     "structure.mp4",
   );
+});
+
+test("结构仿写挂载独立任务记录侧栏", () => {
+  assert.doesNotMatch(viralRemakeSource, /no-sidebar/);
+  assert.match(viralRemakeSource, /useRemakeDrafts\(STRUCTURE_DRAFTS_KEY, "structure"\)/);
+  assert.match(viralRemakeSource, /storageKey=\{STRUCTURE_DRAFTS_KEY\}[\s\S]*?title="结构仿写任务记录"/);
+});
+
+test("加载 Demo 后替换素材默认保持未上传", () => {
+  const loadDemoHandler = viralRemakeSource.slice(
+    viralRemakeSource.indexOf("  const loadDemo ="),
+    viralRemakeSource.indexOf("  const regenerateStoryboard ="),
+  );
+
+  assert.match(loadDemoHandler, /assets:\s*\[\]/u);
+  assert.match(loadDemoHandler, /request:\s*""/u);
+  assert.doesNotMatch(loadDemoHandler, /assets:\s*mode ===/u);
+  assert.doesNotMatch(loadDemoHandler, /request:\s*mode ===/u);
 });
 
 test("元素替换工作区对齐原片仿写的页面骨架", () => {
@@ -112,10 +227,11 @@ test("元素替换和原片仿写步骤导航统一使用完整边框并仅保�
   assert.doesNotMatch(rewriteStyles, /\.rewrite-steps\{[^}]*border-bottom:/);
 });
 
-test("元素替换和原片仿写分别挂载独立草稿记录侧栏", () => {
+test("三个复刻模块分别挂载独立草稿记录侧栏", () => {
   const rewriteSource = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
   const sidebarSource = readFileSync(new URL("./RemakeDraftSidebar.jsx", import.meta.url), "utf8");
   assert.match(viralRemakeSource, /<RemakeDraftSidebar[\s\S]*?storageKey=\{ELEMENT_DRAFTS_KEY\}/);
+  assert.match(viralRemakeSource, /<RemakeDraftSidebar[\s\S]*?storageKey=\{STRUCTURE_DRAFTS_KEY\}/);
   assert.match(rewriteSource, /<RemakeDraftSidebar[\s\S]*?storageKey=\{REWRITE_DRAFTS_KEY\}/);
   assert.match(sidebarSource, /任务记录/);
   assert.match(sidebarSource, /新建任务/);
@@ -138,23 +254,16 @@ test("复刻流程只保留四个步骤并在片段提取结束", () => {
   assert.deepEqual(steps, ["拆解视频", "替换素材", "替换结果", "提取片段"]);
 });
 
-test("替换后的故事面板支持切换编辑并保存正文", () => {
-  assert.match(
-    viralRemakeSource,
-    /function DocumentEditor\(\{[\s\S]*?onChange,[\s\S]*?\}\)/,
-  );
-  assert.match(
-    viralRemakeSource,
-    /aria-label=\{editing \? `预览\$\{title\}` : `编辑\$\{title\}`\}/,
-  );
-  assert.match(
-    viralRemakeSource,
-    /<textarea[\s\S]*?value=\{value\}[\s\S]*?onChange=\{\(event\) => onChange\(event\.target\.value\)\}/,
-  );
-  assert.match(
-    viralRemakeSource,
-    /onChange=\{\(nextValue\) =>[\s\S]*?updateDocument\(value, "storyboard", nextValue\)/,
-  );
+test("元素替换与结构仿写页面只读展示故事面板且不提供重新开始", () => {
+  assert.doesNotMatch(viralRemakeSource, />\s*(?:编辑|预览|保存修改)\s*</);
+  assert.doesNotMatch(viralRemakeSource, />\s*重新开始\s*</);
+  assert.doesNotMatch(viralRemakeSource, /aria-label=\{editing \? `预览\$\{title\}` : `编辑\$\{title\}`\}/);
+  assert.match(viralRemakeSource, /<AssetMarkdown[\s\S]*?value=\{value\}[\s\S]*?assets=\{assets\}/);
+});
+
+test("片段故事面板状态图标已正确导入且不会导致第四步白屏", () => {
+  assert.match(viralRemakeSource, /FilePenLine,[\s\S]*?FileText,/);
+  assert.match(viralRemakeSource, /<FilePenLine \/>\s*故事面板已就绪/);
 });
 
 test("项目流程不会进入已移除的第五步", () => {
@@ -220,7 +329,7 @@ test("片段卡片移除复选框并使用黑色边框表示选择状态", () =>
 
 test("所有遮罩弹窗统一使用文字关闭按钮", () => {
   const closeButtons = [
-    ...viralRemakeSource.matchAll(
+    ...`${viralRemakeSource}\n${videoPreviewModalSource}`.matchAll(
       /className="remake-modal-close"[\s\S]{0,220}?<\/button>/g,
     ),
   ].map((match) => match[0]);
@@ -265,7 +374,7 @@ test("遮罩关闭按钮位于弹窗底部操作栏且主次按钮等高", () =>
   );
   assert.match(nestedFooterRule, /justify-content:\s*flex-end/);
   assert.equal(
-    (viralRemakeSource.match(/className="remake-modal-footer"/g) ?? []).length,
+    (`${viralRemakeSource}\n${videoPreviewModalSource}`.match(/className="remake-modal-footer"/g) ?? []).length,
     6,
   );
   assert.match(viralRemakeSource, /const segmentDetailCloseRef = useRef\(null\)/);
@@ -279,13 +388,16 @@ test("遮罩关闭按钮位于弹窗底部操作栏且主次按钮等高", () =>
     /className="remake-segment-modal-header"[\s\S]*?<span>0\{index \+ 1\}<\/span>[\s\S]*?<h2>\{segment\.title\}<\/h2>[\s\S]*?<p>\{segment\.time\}/,
   );
   assert.equal(
-    (viralRemakeSource.match(/className="remake-segment-modal-header"/g) ?? [])
-      .length,
+    (`${viralRemakeSource}\n${videoPreviewModalSource}`.match(/className="remake-segment-modal-header"/g) ?? []).length,
     2,
   );
   assert.match(
+    videoPreviewModalSource,
+    /className="remake-video-modal shared-video-preview"[\s\S]*?className="remake-segment-modal-header"/,
+  );
+  assert.match(
     viralRemakeSource,
-    /className="remake-video-modal"[\s\S]*?className="remake-segment-modal-header"[\s\S]*?<span>0\{index \+ 1\}<\/span>[\s\S]*?<h2>\{segment\.title\}<\/h2>[\s\S]*?<p>\{segment\.time\}/,
+    /<VideoPreviewModal[\s\S]*?badge=\{`0\$\{index \+ 1\}`\}[\s\S]*?subtitle=\{`\$\{segment\.time\}/,
   );
   assert.match(actionRule, /height:\s*36px/);
 
@@ -413,10 +525,10 @@ test("替换后故事面板 Demo 使用完整三片段九镜头内容和固定�
   ]) {
     assert.equal(storyboardText.includes(section), true, section);
   }
-  assert.match(storyboardText, /@图片1 \[男性口播者及灰色亨利领上衣\]/);
+  assert.match(storyboardText, /@图片3 \[男性口播者及灰色亨利领上衣\]/);
   assert.match(storyboardText, /@图片2 \[WindBoss Gold Shilajit Gummies产品罐\]/);
-  assert.match(storyboardText, /@图片3 \[红色方糖形软糖\]/);
-  assert.doesNotMatch(storyboardText, /@图片3 \[男性口播者/);
+  assert.match(storyboardText, /@图片1 \[红色方糖形软糖\]/);
+  assert.doesNotMatch(storyboardText, /@图片1 \[男性口播者/);
 });
 
 test("故事面板文本可拆分为普通文字和资源胶囊引用", () => {
@@ -452,10 +564,10 @@ test("片段提取 Demo 使用三份完整 Markdown 并统一资源编号", () =
     assert.match(segment.content, /### 3\. 引用资源/);
     assert.match(segment.content, /### 5\. 片段生成约束/);
     assert.equal(segment.content.includes(expectedTitles[index]), true);
-    assert.match(segment.content, /@图片1 \[男性口播者及灰色亨利领上衣\]/);
-    assert.doesNotMatch(segment.content, /@图片3 \[男性口播者/);
+    assert.match(segment.content, /@图片3 \[男性口播者及灰色亨利领上衣\]/);
+    assert.doesNotMatch(segment.content, /@图片1 \[男性口播者/);
   });
-  assert.match(segmentDocuments[0].content, /@图片3 \[红色方糖形软糖\]/);
+  assert.match(segmentDocuments[0].content, /@图片1 \[红色方糖形软糖\]/);
 });
 
 test("视频生成列表保留独立的紧凑片段摘要", () => {
@@ -494,21 +606,37 @@ test("阅读弹窗在首尾控件间循环焦点", () => {
   assert.equal(getTrappedFocusTarget(focusable, middle, false), null);
 });
 
-test("拆解 Demo 使用最新文件中的完整七部分框架", () => {
+test("拆解 Demo 使用最新文件中的完整六部分框架", () => {
   for (const section of [
     "01｜视频定位",
-    "02｜脚本资源",
-    "03｜转化逻辑",
-    "04｜吸引力机制",
-    "05｜叙事编排",
-    "06｜场景规划",
-    "07｜分镜执行",
+    "02｜转化逻辑",
+    "03｜吸引力机制",
+    "04｜叙事编排",
+    "05｜场景规划",
+    "06｜分镜执行",
   ]) {
     assert.equal(breakdownText.includes(section), true);
   }
-  assert.equal(breakdownText.includes("00:42"), true);
-  assert.equal(breakdownText.includes("00:00-00:06问题抛出"), true);
-  assert.equal(breakdownText.includes("【人物1】"), true);
+  assert.equal(breakdownText.includes("完整时长00:41"), true);
+  assert.equal(breakdownText.includes("00:00-00:07开场钩子"), true);
+  assert.equal(breakdownText.includes("黑色带银蓝标签"), true);
+});
+
+test("页面可将带 type 和 url 的引用素材映射转换为胶囊素材", () => {
+  assert.deepEqual(normalizeReferenceAssets({
+    图片1: { type: "image", url: "https://cdn.example.com/gummy.webp" },
+    图片2: { type: "image", url: "https://cdn.example.com/product.webp" },
+  }), [
+    { role: "图片1", type: "image", url: "https://cdn.example.com/gummy.webp" },
+    { role: "图片2", type: "image", url: "https://cdn.example.com/product.webp" },
+  ]);
+  assert.deepEqual(normalizeReferenceAssets([{ role: "图片3", type: "image", preview: "local" }]), [
+    { role: "图片3", type: "image", preview: "local" },
+  ]);
+});
+
+test("页面素材胶囊优先使用 url 地址", () => {
+  assert.match(assetMentionsSource, /asset\?\.url\s*\|\|\s*asset\?\.preview\s*\|\|\s*asset\?\.path/);
 });
 
 test("未上传视频不能开始拆解", () => {
@@ -1003,13 +1131,16 @@ test("引用素材弹层跟随 @ 光标右下角并在右侧边缘内收", () =>
   });
 });
 
-test("只有点击引用编辑区域之外才关闭气泡层", () => {
-  const inside = {};
+test("点击气泡层之外的输入区域也会关闭气泡层", () => {
+  const editorTarget = {};
+  const menuTarget = {};
   const outside = {};
-  const container = { contains: (target) => target === inside };
-  assert.equal(isMentionClickOutside(container, inside), false);
-  assert.equal(isMentionClickOutside(container, outside), true);
-  assert.equal(isMentionClickOutside(null, outside), false);
+  const editor = { contains: (target) => target === editorTarget || target === menuTarget };
+  const menu = { contains: (target) => target === menuTarget };
+  assert.equal(isMentionClickOutside(editor, menu, menuTarget), false);
+  assert.equal(isMentionClickOutside(editor, menu, editorTarget), true);
+  assert.equal(isMentionClickOutside(editor, menu, outside), true);
+  assert.equal(isMentionClickOutside(editor, null, outside), false);
 });
 
 test("画面比例使用默认值并只恢复支持的持久化选项", () => {
@@ -1022,4 +1153,78 @@ test("画面比例使用默认值并只恢复支持的持久化选项", () => {
     createInitialProject({ aspectRatio: "2:1" }).aspectRatio,
     "9:16",
   );
+});
+
+test("清晰度默认使用 1080P 并只恢复支持的持久化选项", () => {
+  assert.deepEqual(OUTPUT_QUALITIES, ["720P", "1080P"]);
+  assert.equal(createInitialProject().quality, "1080P");
+  assert.equal(createInitialProject({ quality: "720P" }).quality, "720P");
+  assert.equal(createInitialProject({ quality: "4K" }).quality, "1080P");
+});
+
+test("固定槽位上传、替换和清空时同步替换需求", () => {
+  const resource = { id: "person", title: "人物1", role: "图片1" };
+  const project = createInitialProject({ request: "保留原片节奏" });
+  const uploaded = setBoundReplacementAsset(project, resource, {
+    id: "person-a",
+    name: "person-a.png",
+    type: "image",
+    sourceId: "person",
+    role: "图片1",
+  });
+
+  assert.equal(uploaded.request, "保留原片节奏\n[人物1]替换成@图片1");
+
+  const replaced = setBoundReplacementAsset(uploaded, resource, {
+    id: "person-b",
+    name: "person-b.png",
+    type: "image",
+    sourceId: "person",
+    role: "图片1",
+  });
+  assert.equal(replaced.request, "保留原片节奏\n[人物1]替换成@图片1");
+  assert.equal(replaced.assets.length, 1);
+
+  const cleared = setBoundReplacementAsset(replaced, resource, null);
+  assert.equal(cleared.request, "保留原片节奏");
+  assert.equal(cleared.assets.length, 0);
+});
+
+test("风格参考同步素材时不显示替换成", () => {
+  const resource = { id: "style-reference", type: "style", title: "风格参考", role: "图片4" };
+  const project = createInitialProject();
+  const uploaded = setBoundReplacementAsset(project, resource, {
+    id: "style-reference",
+    name: "style.jpg",
+    type: "image",
+    sourceId: "style-reference",
+    role: "图片4",
+  });
+
+  assert.equal(uploaded.request, "[风格参考]@图片4");
+});
+
+test("新拆解 Demo 的脚本资源以 JSON 驱动三个替换素材槽位", () => {
+  assert.match(breakdownText, /以下是根据【视频拆解与复刻框架｜紧凑版】/u);
+  assert.match(breakdownText, /### 06｜分镜执行/u);
+  assert.deepEqual(
+    originalReplacementResources.map(({ id, type, title }) => ({ id, type, title })),
+    [
+      { id: "person", type: "person", title: "人物1" },
+      { id: "product-detail", type: "product", title: "产品1-单粒特写" },
+      { id: "product-bottle", type: "product", title: "产品1-瓶装" },
+    ],
+  );
+});
+
+test("元素替换下一步不会在 React 状态更新函数内打印日志", () => {
+  const source = readFileSync(new URL("./ViralRemake.jsx", import.meta.url), "utf8");
+  const componentStart = source.indexOf("export default function ViralRemake");
+  const nextHandler = source.slice(
+    source.indexOf("  const next = () => {", componentStart),
+    source.indexOf("  const loadDemo =", componentStart),
+  );
+
+  assert.match(nextHandler, /logRemakeFlow\(/u);
+  assert.doesNotMatch(nextHandler, /setProject\(\(value\) => \{[\s\S]*logRemakeFlow\(/u);
 });

@@ -620,7 +620,7 @@
 
 .remake-video-options {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-7);
   margin-top: var(--space-8);
   padding-top: var(--space-8);
@@ -1782,6 +1782,23 @@
   width: 100%;
   max-height: calc(100dvh - 220px);
   background: var(--color-bg-canvas);
+}
+.remake-video-modal.shared-video-preview {
+  width: fit-content;
+  max-width: min(1320px, calc(100vw - 80px));
+}
+.shared-video-preview .remake-modal-body {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: var(--color-bg-canvas);
+}
+.shared-video-preview video {
+  width: auto;
+  height: auto;
+  max-width: min(1320px, calc(100vw - 80px));
+  max-height: calc(100dvh - 220px);
+  object-fit: contain;
 }
 .remake-image-viewer header {
   display: flex;

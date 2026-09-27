@@ -2,6 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import {
+  OUTPUT_QUALITIES,
+} from "./viral-remake-state.js";
+import {
   rewriteDemo,
   rewriteSegments,
   rewriteSteps,
@@ -21,6 +24,13 @@ import {
   replaceRewriteVideo,
   setRewriteJobStatus,
 } from "./original-rewrite-state.js";
+
+test("原片仿写持久化清晰度并回退不支持的选项", () => {
+  assert.deepEqual(OUTPUT_QUALITIES, ["720P", "1080P"]);
+  assert.equal(createRewriteProject().quality, "1080P");
+  assert.equal(createRewriteProject({ quality: "720P" }).quality, "720P");
+  assert.equal(createRewriteProject({ quality: "2K" }).quality, "1080P");
+});
 
 test("逐秒重绘按片段正文首次引用顺序读取现有素材", () => {
   const assets = [
@@ -187,12 +197,24 @@ test("原视频逐秒分镜预览保持一比一比例且大图不受裁切", ()
 
 test("原片仿写阶段提供三个引用素材和仿写需求，结果步骤提供故事面板", () => {
   const source = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
+  const replacementRow = readFileSync(new URL("./BoundReplacementRow.jsx", import.meta.url), "utf8");
   assert.deepEqual(rewriteDemo.referenceAssets.map((item) => item.sourceId), ["product-bottle", "product-detail", "storyboard-style"]);
-  assert.match(source, /accept="image\/\*"/);
-  assert.match(source, /素材已删除/);
+  assert.match(source, /<BoundReplacementRow/);
+  assert.match(replacementRow, /accept=\{BOUND_ASSET_ACCEPT\}/);
+  assert.match(source, /素材已清空，点击上传/);
   assert.match(source, />仿写需求 <small>/);
   assert.match(source, /title="原片仿写结果"/);
-  assert.match(source, /editLabel="编辑原片仿写故事面板"/);
+  assert.doesNotMatch(source, />\s*(?:编辑|取消编辑|保存修改)\s*</);
+  assert.doesNotMatch(source, />\s*重新开始\s*</);
+});
+
+test("三个复刻模式统一使用共享遮罩播放器", () => {
+  const playerUrl = new URL("./VideoPreviewModal.jsx", import.meta.url);
+  const rewriteSource = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
+  const viralSource = readFileSync(new URL("./ViralRemake.jsx", import.meta.url), "utf8");
+  assert.equal(existsSync(playerUrl), true, "应提供共享视频遮罩播放器");
+  assert.match(rewriteSource, /<VideoPreviewModal/);
+  assert.match(viralSource, /<VideoPreviewModal/);
 });
 
 test("提取片段提供选择、全选和只读详情", () => {
@@ -201,6 +223,21 @@ test("提取片段提供选择、全选和只读详情", () => {
   assert.match(source, /全选/);
   assert.match(source, /aria-label={`查看\$\{label\}完整内容`}/);
   assert.match(source, /content: <AssetMarkdown value=\{activeSegment\.document\}/);
+});
+
+test("原片仿写每个步骤分别打印当前步骤输入输出", () => {
+  const source = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
+  assert.match(source, /const rewriteStepOperations = \{ 1: "拆解视频", 2: "生成仿写结果", 3: "提取片段", 4: "确认片段", 5: "逐秒重绘", 6: "生成视频" \}/);
+  assert.match(source, /logRemakeFlow\("rewrite", 3, rewriteStepOperations\[3\]/);
+  assert.match(source, /logRemakeFlow\("rewrite", step, rewriteStepOperations\[step\]/);
+});
+
+test("原片仿写下一步不会在 React 状态更新函数内打印日志", () => {
+  const source = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
+  const nextHandler = source.slice(source.indexOf("  const next ="), source.indexOf("  const loadDemo ="));
+
+  assert.match(nextHandler, /logRemakeFlow\(/u);
+  assert.doesNotMatch(nextHandler, /setProject\(\(value\) => \{[\s\S]*logRemakeFlow\(/u);
 });
 
 test("重绘和视频阶段提供单段批量生成及原生播放", () => {
@@ -249,7 +286,7 @@ test("工作流具备任务失效、独立生成、重提取和实时片段弹�
   assert.match(source, /重新提取片段/);
   assert.match(source, /type: "segment"/);
   assert.match(source, /重新选择原视频/);
-  assert.match(source, /重新选择图片/);
+  assert.match(source, /<BoundReplacementRow/);
 });
 
 test("需求编辑器支持素材候选、失效提示和键盘列表", () => {
@@ -308,7 +345,7 @@ test("原片仿写复用带缩略图的资源引用并提供未生成状态", ()
   assert.match(shared, /export function MentionEditor/);
   assert.match(shared, /export function AssetMarkdown/);
   assert.match(shared, /remake-token-thumb/);
-  assert.match(rewrite, /className="rewrite-video-ready"/);
+  assert.match(rewrite, /className="remake-selected-file"/);
   assert.match(rewrite, /尚未生成故事面板/);
   assert.match(rewrite, /<MentionEditor/);
   assert.match(rewrite, /<AssetMarkdown/);

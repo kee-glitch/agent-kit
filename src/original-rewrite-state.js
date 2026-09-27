@@ -1,11 +1,11 @@
 import { rewriteDemo, rewriteSegments } from "./original-rewrite-data.js";
-import { ASPECT_RATIOS, splitAssetMentions } from "./viral-remake-state.js";
+import { ASPECT_RATIOS, OUTPUT_QUALITIES, splitAssetMentions } from "./viral-remake-state.js";
 
 export const REWRITE_STORAGE_KEY = "shulan.original-rewrite.project.v1";
 export const REWRITE_MODELS = ["seedance 2.0 mini", "seedance 2.0 fast", "seedance 2.0", "seedance 2.5"];
 
 const EMPTY_DOCUMENTS = { breakdown: "", rewrite: "" };
-const EMPTY_PROJECT = { step: 1, maxStep: 1, videoName: "", videoPath: "", model: "seedance 2.0", aspectRatio: "9:16", request: "", references: [], referenceCounters: { image: 3, audio: 0, video: 0 }, documents: EMPTY_DOCUMENTS, segments: [], savedAt: "" };
+const EMPTY_PROJECT = { step: 1, maxStep: 1, videoName: "", videoPath: "", model: "seedance 2.0", aspectRatio: "9:16", quality: "1080P", request: "", references: [], referenceCounters: { image: 3, audio: 0, video: 0 }, documents: EMPTY_DOCUMENTS, segments: [], savedAt: "" };
 const validStatus = (status) => status === "done" || status === "idle" ? status : "idle";
 const validMediaType = (type) => ["image", "audio", "video"].includes(type) ? type : "image";
 const mediaLabels = { image: "图片", audio: "音频", video: "视频" };
@@ -62,6 +62,7 @@ export function createRewriteProject(saved = {}) {
     videoPath: typeof value.videoPath === "string" && !value.videoPath.startsWith("blob:") ? value.videoPath : "",
     model: REWRITE_MODELS.includes(value.model) ? value.model : EMPTY_PROJECT.model,
     aspectRatio: ASPECT_RATIOS.includes(value.aspectRatio) ? value.aspectRatio : EMPTY_PROJECT.aspectRatio,
+    quality: OUTPUT_QUALITIES.includes(value.quality) ? value.quality : EMPTY_PROJECT.quality,
     request: typeof value.request === "string" ? value.request : "",
     references,
     referenceCounters: referenceCounters(references, value.referenceCounters),

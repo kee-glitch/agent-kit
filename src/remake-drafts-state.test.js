@@ -3,16 +3,28 @@ import assert from "node:assert/strict";
 import {
   ELEMENT_DRAFTS_KEY,
   REWRITE_DRAFTS_KEY,
+  STRUCTURE_DRAFTS_KEY,
   createDraftCollection,
   deleteDraft,
   filterDrafts,
+  getDraftModeLabel,
   saveDraft,
   toggleDraftPin,
   updateDraftTitle,
 } from "./remake-drafts-state.js";
 
-test("两个复刻模块使用独立的草稿记录存储键", () => {
+test("三个复刻模块使用独立的草稿记录存储键", () => {
   assert.notEqual(ELEMENT_DRAFTS_KEY, REWRITE_DRAFTS_KEY);
+  assert.notEqual(ELEMENT_DRAFTS_KEY, STRUCTURE_DRAFTS_KEY);
+  assert.notEqual(REWRITE_DRAFTS_KEY, STRUCTURE_DRAFTS_KEY);
+});
+
+test("结构仿写草稿会保留所属模式", () => {
+  const [draft] = createDraftCollection([
+    { id: "structure-1", title: "结构任务", mode: "structure", project: {} },
+  ]);
+  assert.equal(draft.mode, "structure");
+  assert.equal(getDraftModeLabel(draft.mode), "结构仿写");
 });
 
 test("保存草稿可新增和更新同一条记录", () => {

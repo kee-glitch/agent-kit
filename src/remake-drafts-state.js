@@ -1,10 +1,14 @@
 export const ELEMENT_DRAFTS_KEY = "shulan.element-remake.drafts.v1";
 export const REWRITE_DRAFTS_KEY = "shulan.original-rewrite.drafts.v1";
+export const STRUCTURE_DRAFTS_KEY = "shulan.structure-remake.drafts.v1";
+
+const DRAFT_MODE_LABELS = { element: "元素替换", rewrite: "原片仿写", structure: "结构仿写" };
+export const getDraftModeLabel = (mode) => DRAFT_MODE_LABELS[mode] || DRAFT_MODE_LABELS.element;
 
 const cleanDraft = (value) => ({
   id: String(value?.id || ""),
   title: String(value?.title || "未命名项目"),
-  mode: value?.mode === "rewrite" ? "rewrite" : "element",
+  mode: ["element", "rewrite", "structure"].includes(value?.mode) ? value.mode : "element",
   pinned: value?.pinned === true,
   updatedAt: String(value?.updatedAt || "刚刚"),
   project: value?.project && typeof value.project === "object" && !Array.isArray(value.project) ? value.project : {},
