@@ -69,10 +69,10 @@ test("元素替换工作区对齐原片仿写的页面骨架", () => {
   assert.doesNotMatch(viralRemakeStyles, /\.remake-(?:image-viewer|video-modal|segment-modal)[^{]*\{[^}]*width: min\((?:1100|920|680)px/);
 });
 
-test("元素替换和原片仿写步骤导航统一使用圆角卡片", () => {
+test("元素替换和原片仿写步骤导航统一仅保留下方圆角", () => {
   const rewriteStyles = readFileSync(new URL("./original-rewrite.css", import.meta.url), "utf8");
-  assert.match(viralRemakeStyles, /\.remake-steps \{[\s\S]*?border-radius: var\(--radius-card-sm\);[\s\S]*?background: var\(--color-bg-surface\);/);
-  assert.match(rewriteStyles, /\.rewrite-steps\{[^}]*border-radius:var\(--radius-card-sm\)[^}]*background:var\(--color-bg-surface\)/);
+  assert.match(viralRemakeStyles, /\.remake-steps \{[\s\S]*?border-radius: 0 0 var\(--radius-card-sm\) var\(--radius-card-sm\);[\s\S]*?background: var\(--color-bg-surface\);/);
+  assert.match(rewriteStyles, /\.rewrite-steps\{[^}]*border-radius:0 0 var\(--radius-card-sm\) var\(--radius-card-sm\)[^}]*background:var\(--color-bg-surface\)/);
 });
 
 test("元素替换和原片仿写分别挂载独立草稿记录侧栏", () => {

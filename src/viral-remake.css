@@ -299,7 +299,7 @@
   box-sizing: border-box;
   padding: 24px clamp(24px, 4vw, 56px);
   overflow: hidden;
-  border-radius: var(--radius-card-sm);
+  border-radius: 0 0 var(--radius-card-sm) var(--radius-card-sm);
   border-bottom: 1px solid var(--color-border-subtle);
   background: var(--color-bg-surface);
 }
