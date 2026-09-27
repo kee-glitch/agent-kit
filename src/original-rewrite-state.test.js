@@ -12,6 +12,7 @@ import {
   advanceRewriteStep,
   clearRewriteRunningStatuses,
   createRewriteProject,
+  findRewriteDocumentAssets,
   loadRewriteDemo,
   persistRewriteProject,
   queueRewriteJobs,
@@ -20,6 +21,23 @@ import {
   replaceRewriteVideo,
   setRewriteJobStatus,
 } from "./original-rewrite-state.js";
+
+test("逐秒重绘按片段正文首次引用顺序读取现有素材", () => {
+  const assets = [
+    { id: "image-1", role: "图片1" },
+    { id: "image-2", role: "图片2" },
+    { id: "image-3", role: "图片3" },
+  ];
+  assert.deepEqual(
+    findRewriteDocumentAssets("先用 @图片2，再用 @图片1，重复 @图片2，缺失 @图片4。", assets),
+    [assets[1], assets[0]],
+  );
+  assert.deepEqual(findRewriteDocumentAssets("没有引用", assets), []);
+  assert.deepEqual(
+    rewriteSegments.map((segment) => findRewriteDocumentAssets(segment.document, rewriteDemo.referenceAssets).map((asset) => asset.role)),
+    [["图片2"], ["图片2"], ["图片1"], ["图片1"]],
+  );
+});
 
 test("原片仿写定义六个阶段和四个完整片段", () => {
   assert.deepEqual(rewriteSteps, [
@@ -343,13 +361,13 @@ test("逐秒重绘使用单列参数列表展示片段时长和参考资源", ()
   assert.match(source, /<dt>片段<\/dt>/);
   assert.match(source, /<dt>时长<\/dt>/);
   assert.match(source, /<dt>参考资源<\/dt>/);
-  assert.match(source, /assets\.map\(\(asset\) =>/);
+  assert.match(source, /referencedAssets\.map\(\(asset\) =>/);
   assert.match(source, /<AssetMention asset=\{asset\} reference=\{asset\.role\} \/>/);
   assert.match(styles, /\.rewrite-redraw-list\{display:grid;grid-template-columns:1fr/);
   assert.doesNotMatch(styles, /\.rewrite-output-grid,.rewrite-video-grid\{display:grid;grid-template-columns:1fr 1fr/);
 });
 
-test("逐秒重绘统一展示三项命名参考资源且隐藏片段标题", () => {
+test("逐秒重绘保留三项命名资源配置且隐藏片段标题", () => {
   const source = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
   assert.equal(createRewriteProject().referenceCounters.image, 3);
   assert.equal(rewriteDemo.referenceAssets.length, 3);
@@ -359,7 +377,9 @@ test("逐秒重绘统一展示三项命名参考资源且隐藏片段标题", ()
     ["图片3", "分镜风格参考"],
   ]);
   assert.match(source, /<dt>参考资源<\/dt>/);
-  assert.match(source, /assets\.map\(\(asset\) => <span className="rewrite-redraw-reference"/);
+  assert.match(source, /findRewriteDocumentAssets\(segment\.document, assets\)/);
+  assert.match(source, /referencedAssets\.map\(\(asset\) => <span className="rewrite-redraw-reference"/);
+  assert.match(source, /<span>无参考资源<\/span>/);
   assert.match(source, /asset\.label \|\| rewriteReferences\.find/);
   assert.doesNotMatch(source, /<small>\{segment\.title\}<\/small>/);
 });

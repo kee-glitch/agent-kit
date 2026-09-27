@@ -1,5 +1,5 @@
 import { rewriteDemo, rewriteSegments } from "./original-rewrite-data.js";
-import { ASPECT_RATIOS } from "./viral-remake-state.js";
+import { ASPECT_RATIOS, splitAssetMentions } from "./viral-remake-state.js";
 
 export const REWRITE_STORAGE_KEY = "shulan.original-rewrite.project.v1";
 export const REWRITE_MODELS = ["seedance 2.0 mini", "seedance 2.0 fast", "seedance 2.0", "seedance 2.5"];
@@ -19,6 +19,11 @@ const referenceCounters = (assets, saved = {}) => {
   });
   return counters;
 };
+
+export function findRewriteDocumentAssets(document, assets = []) {
+  const roles = [...new Set(splitAssetMentions(document).filter((part) => part.type === "mention").map((part) => part.role))];
+  return roles.map((role) => assets.find((asset) => asset.role === role)).filter(Boolean);
+}
 const cleanString = (value, fallback = "") => typeof value === "string" ? value : fallback;
 const cleanNumber = (value, fallback = 0) => Number.isFinite(value) ? value : fallback;
 const cleanSegment = (segment, fallback = {}) => ({
