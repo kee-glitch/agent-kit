@@ -82,6 +82,15 @@ test("元素替换和原片仿写分别挂载独立草稿记录侧栏", () => {
   assert.match(sidebarSource, /删除/);
 });
 
+test("两个独立草稿侧栏在任务记录前显示所属模块", () => {
+  const rewriteSource = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
+  const sidebarSource = readFileSync(new URL("./RemakeDraftSidebar.jsx", import.meta.url), "utf8");
+  assert.match(viralRemakeSource, /<RemakeDraftSidebar[\s\S]*?title="元素替换任务记录"/);
+  assert.match(rewriteSource, /<RemakeDraftSidebar[\s\S]*?storageKey=\{REWRITE_DRAFTS_KEY\}/);
+  assert.match(sidebarSource, /storageKey === REWRITE_DRAFTS_KEY \? "原片仿写任务记录" : "元素替换任务记录"/);
+  assert.match(sidebarSource, /<strong>\{heading\}<\/strong>/);
+});
+
 test("复刻流程只保留四个步骤并在片段提取结束", () => {
   assert.deepEqual(steps, ["拆解视频", "替换素材", "替换结果", "提取片段"]);
 });

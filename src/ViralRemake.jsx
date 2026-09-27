@@ -1477,7 +1477,7 @@ export default function ViralRemake() {
         <OriginalRewrite onBack={() => setMode(null)} notify={notify} />
       ) : (
         <div className="remake-draft-layout">
-          <RemakeDraftSidebar storageKey={ELEMENT_DRAFTS_KEY} manager={elementDrafts} onNew={() => { elementDrafts.setActiveId(null); setProject(createInitialProject()); }} onSelect={(draft) => setProject(createInitialProject(draft.project))} />
+          <RemakeDraftSidebar storageKey={ELEMENT_DRAFTS_KEY} title="元素替换任务记录" manager={elementDrafts} onNew={() => { elementDrafts.setActiveId(null); setProject(createInitialProject()); }} onSelect={(draft) => setProject(createInitialProject(draft.project))} />
           <div className="remake-workspace">
           <WorkflowHeader
             project={project}
