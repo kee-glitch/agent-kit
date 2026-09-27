@@ -276,6 +276,18 @@ test("原片仿写按钮沿用元素替换的统一规格", () => {
   assert.match(styles, /\.original-rewrite button:focus-visible/);
 });
 
+test("原片仿写与元素替换使用一致的双层项目标题栏", () => {
+  const rewrite = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
+  const rewriteStyles = readFileSync(new URL("./original-rewrite.css", import.meta.url), "utf8");
+  const viralStyles = readFileSync(new URL("./viral-remake.css", import.meta.url), "utf8");
+  assert.match(rewrite, /<div className="rewrite-project-title">[\s\S]*?<button[\s\S]*?<div>[\s\S]*?<span>爆款复刻 \/ 原片仿写<\/span>[\s\S]*?<strong>\{project\.videoName \|\| "未命名项目"\}<\/strong>[\s\S]*?<\/div>/);
+  assert.match(rewriteStyles, /\.rewrite-project-header\{[^}]*height:72px[^}]*padding:0 clamp\(24px,4vw,56px\)/);
+  assert.match(rewriteStyles, /\.rewrite-project-title>div>span,\.rewrite-project-title>div>strong\{display:block\}/);
+  assert.match(rewriteStyles, /\.rewrite-project-title>div>span\{[^}]*font:var\(--type-body-sm\)/);
+  assert.match(rewriteStyles, /\.rewrite-project-title>div>strong\{[^}]*margin-top:2px[^}]*font:var\(--type-label\)/);
+  assert.match(viralStyles, /\.remake-project-header \{[\s\S]*?height: 72px;[\s\S]*?padding: 0 clamp\(24px, 4vw, 56px\);/);
+});
+
 test("原片仿写六步导航沿用元素替换的白底连线样式", () => {
   const source = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
   const styles = readFileSync(new URL("./original-rewrite.css", import.meta.url), "utf8");
