@@ -67,6 +67,7 @@ import {
   toggleAllSegmentSelections,
   nextAssetLabel,
   persistProject,
+  serializeProject,
   queueGeneration,
   removeReplacementAsset,
   replaceSequencedAsset,
@@ -79,6 +80,8 @@ import {
 } from "./viral-remake-state";
 import "./viral-remake.css";
 import OriginalRewrite from "./OriginalRewrite";
+import RemakeDraftSidebar, { useRemakeDrafts } from "./RemakeDraftSidebar";
+import { ELEMENT_DRAFTS_KEY } from "./remake-drafts-state";
 
 const MODELS = [
   "seedance 2.0 mini",
@@ -1379,6 +1382,7 @@ export default function ViralRemake() {
   const [viewer, setViewer] = useState(null);
   const [segmentDetail, setSegmentDetail] = useState(null);
   const [regenerating, setRegenerating] = useState(false);
+  const elementDrafts = useRemakeDrafts(ELEMENT_DRAFTS_KEY, "element");
   const timer = useRef(null);
   const viewerCloseRef = useRef(null);
   const viewerReturnFocusRef = useRef(null);
@@ -1426,6 +1430,7 @@ export default function ViralRemake() {
   };
   const save = () => {
     persistProject(localStorage, project);
+    elementDrafts.save(JSON.parse(serializeProject(project)));
     notify("草稿已保存到当前浏览器");
   };
   const next = () => setProject((value) => advanceStep(value));
@@ -1471,7 +1476,9 @@ export default function ViralRemake() {
       ) : mode === "rewrite" ? (
         <OriginalRewrite onBack={() => setMode(null)} notify={notify} />
       ) : (
-        <div className="remake-workspace">
+        <div className="remake-draft-layout">
+          <RemakeDraftSidebar storageKey={ELEMENT_DRAFTS_KEY} manager={elementDrafts} onNew={() => { elementDrafts.setActiveId(null); setProject(createInitialProject()); }} onSelect={(draft) => setProject(createInitialProject(draft.project))} />
+          <div className="remake-workspace">
           <WorkflowHeader
             project={project}
             onBack={() => setMode(null)}
@@ -1517,7 +1524,8 @@ export default function ViralRemake() {
             notify={notify}
           />
         )}{" "}
-      </div>
+          </div>
+        </div>
       )}
       {notice && (
         <div className="remake-toast">

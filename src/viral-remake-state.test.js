@@ -69,6 +69,19 @@ test("元素替换工作区对齐原片仿写的页面骨架", () => {
   assert.doesNotMatch(viralRemakeStyles, /\.remake-(?:image-viewer|video-modal|segment-modal)[^{]*\{[^}]*width: min\((?:1100|920|680)px/);
 });
 
+test("元素替换和原片仿写分别挂载独立草稿记录侧栏", () => {
+  const rewriteSource = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
+  const sidebarSource = readFileSync(new URL("./RemakeDraftSidebar.jsx", import.meta.url), "utf8");
+  assert.match(viralRemakeSource, /<RemakeDraftSidebar[\s\S]*?storageKey=\{ELEMENT_DRAFTS_KEY\}/);
+  assert.match(rewriteSource, /<RemakeDraftSidebar[\s\S]*?storageKey=\{REWRITE_DRAFTS_KEY\}/);
+  assert.match(sidebarSource, /任务记录/);
+  assert.match(sidebarSource, /新建任务/);
+  assert.match(sidebarSource, /搜索任务/);
+  assert.match(sidebarSource, /置顶/);
+  assert.match(sidebarSource, /重命名/);
+  assert.match(sidebarSource, /删除/);
+});
+
 test("复刻流程只保留四个步骤并在片段提取结束", () => {
   assert.deepEqual(steps, ["拆解视频", "替换素材", "替换结果", "提取片段"]);
 });
