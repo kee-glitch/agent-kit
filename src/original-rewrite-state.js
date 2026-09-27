@@ -21,7 +21,8 @@ const referenceCounters = (assets, saved = {}) => {
 };
 
 export function findRewriteDocumentAssets(document, assets = []) {
-  const roles = [...new Set(splitAssetMentions(document).filter((part) => part.type === "mention").map((part) => part.role))];
+  const roles = [...new Set(splitAssetMentions(document).filter((part) => part.type === "mention" && part.role !== "图片3").map((part) => part.role))];
+  if (assets.some((asset) => asset.role === "图片3")) roles.push("图片3");
   return roles.map((role) => assets.find((asset) => asset.role === role)).filter(Boolean);
 }
 const cleanString = (value, fallback = "") => typeof value === "string" ? value : fallback;

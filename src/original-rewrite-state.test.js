@@ -30,12 +30,13 @@ test("逐秒重绘按片段正文首次引用顺序读取现有素材", () => {
   ];
   assert.deepEqual(
     findRewriteDocumentAssets("先用 @图片2，再用 @图片1，重复 @图片2，缺失 @图片4。", assets),
-    [assets[1], assets[0]],
+    [assets[1], assets[0], assets[2]],
   );
-  assert.deepEqual(findRewriteDocumentAssets("没有引用", assets), []);
+  assert.deepEqual(findRewriteDocumentAssets("已经引用 @图片3 和 @图片1", assets), [assets[0], assets[2]]);
+  assert.deepEqual(findRewriteDocumentAssets("没有引用", assets), [assets[2]]);
   assert.deepEqual(
     rewriteSegments.map((segment) => findRewriteDocumentAssets(segment.document, rewriteDemo.referenceAssets).map((asset) => asset.role)),
-    [["图片2"], ["图片2"], ["图片1"], ["图片1"]],
+    [["图片2", "图片3"], ["图片2", "图片3"], ["图片1", "图片3"], ["图片1", "图片3"]],
   );
 });
 
