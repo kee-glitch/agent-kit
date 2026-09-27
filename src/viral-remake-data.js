@@ -2,9 +2,14 @@ import { segmentMarkdownDocuments } from "./viral-remake-segments.js";
 
 export const modes = [
   { id: 'element', index: '01', title: '元素替换', subtitle: '最贴近原片动作镜头', description: '保留原视频的镜头、运镜、动作、时长和口播节奏，只替换人物、产品或场景。', active: true },
-  { id: 'rewrite', index: '02', title: '原片仿写', subtitle: '中等自由度', description: '学习原片镜头、动作与叙事节奏，对整体画面进行重新绘制。', active: false },
-  { id: 'structure', index: '03', title: '结构仿写', subtitle: '最高自由度', description: '提取开场钩子、镜头顺序与剪辑骨架，自由改写人物、台词和场景。', active: false },
+  { id: 'rewrite', index: '02', title: '原片仿写', subtitle: '中等自由度', description: '学习原片镜头、动作与叙事节奏，对整体画面进行重新绘制。', active: true },
+  { id: 'structure', index: '03', title: '结构仿写', subtitle: '最高自由度', description: '提取开场钩子、镜头顺序与剪辑骨架，自由改写人物、台词和场景。', active: true },
 ]
+
+export const structureDemo = {
+  aspectRatio: '1:1',
+  referenceImage: './viral-remake-demo/structure-storyboard.jpg',
+}
 
 export const steps = ['拆解视频', '替换素材', '替换结果', '提取片段']
 

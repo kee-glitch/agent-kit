@@ -954,6 +954,41 @@
   justify-content: space-between;
   margin: var(--space-10) 0 var(--space-6);
 }
+.remake-structure-board {
+  position: relative;
+  display: block;
+  width: min(100%, 680px);
+  aspect-ratio: 1;
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-card-sm);
+  background: var(--color-bg-subtle);
+  cursor: zoom-in;
+}
+.remake-structure-board img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.remake-structure-board span {
+  position: absolute;
+  right: var(--space-4);
+  bottom: var(--space-4);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-capsule);
+  background: var(--color-bg-inverse);
+  color: var(--color-text-inverse);
+  font: var(--type-label-sm);
+}
+.remake-structure-board span svg { width: 14px; height: 14px; }
+.remake-structure-board:focus-visible {
+  outline: 0;
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
+}
 .remake-section-title h2,
 .remake-section-title p {
   margin: 0;

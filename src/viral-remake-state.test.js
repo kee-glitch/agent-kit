@@ -38,6 +38,7 @@ import {
   replaceSequencedAsset,
   upsertBoundReplacementAsset,
   updateDocument,
+  getStorageKey,
 } from "./viral-remake-state.js";
 import {
   breakdownText,
@@ -48,6 +49,8 @@ import {
   segmentDocuments,
   steps,
   storyboardText,
+  modes,
+  structureDemo,
 } from "./viral-remake-data.js";
 
 const viralRemakeSource = readFileSync(
@@ -58,6 +61,38 @@ const viralRemakeStyles = readFileSync(
   new URL("./viral-remake.css", import.meta.url),
   "utf8",
 );
+
+test("结构仿写作为独立模式开放并使用隔离草稿", () => {
+  const structureMode = modes.find((mode) => mode.id === "structure");
+  const rewriteMode = modes.find((mode) => mode.id === "rewrite");
+
+  assert.equal(structureMode?.active, true);
+  assert.equal(rewriteMode?.active, true);
+  assert.equal(getStorageKey("element"), "shulan.viral-remake.project.v1");
+  assert.equal(
+    getStorageKey("structure"),
+    "shulan.viral-remake.structure.project.v1",
+  );
+  assert.equal(structureDemo.aspectRatio, "1:1");
+  assert.equal(structureDemo.referenceImage.endsWith("/structure-storyboard.jpg"), true);
+});
+
+test("结构仿写草稿保存到指定键而不覆盖元素替换", () => {
+  const values = new Map();
+  const storage = { setItem: (key, value) => values.set(key, value) };
+
+  persistProject(
+    storage,
+    createInitialProject({ videoName: "structure.mp4", aspectRatio: "1:1" }),
+    getStorageKey("structure"),
+  );
+
+  assert.equal(values.has(getStorageKey("element")), false);
+  assert.equal(
+    createInitialProject(values.get(getStorageKey("structure"))).videoName,
+    "structure.mp4",
+  );
+});
 
 test("复刻流程只保留四个步骤并在片段提取结束", () => {
   assert.deepEqual(steps, ["拆解视频", "替换素材", "替换结果", "提取片段"]);

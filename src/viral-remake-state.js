@@ -1,4 +1,7 @@
 export const STORAGE_KEY = "shulan.viral-remake.project.v1";
+export const STRUCTURE_STORAGE_KEY = "shulan.viral-remake.structure.project.v1";
+export const getStorageKey = (mode = "element") =>
+  mode === "structure" ? STRUCTURE_STORAGE_KEY : STORAGE_KEY;
 export const BOUND_ASSET_ACCEPT = "image/*";
 export const GENERAL_ASSET_ACCEPT = "image/*,audio/*,video/*";
 
@@ -448,6 +451,6 @@ export function serializeProject(project) {
   });
 }
 
-export function persistProject(storage, project) {
-  storage.setItem(STORAGE_KEY, serializeProject(project));
+export function persistProject(storage, project, storageKey = STORAGE_KEY) {
+  storage.setItem(storageKey, serializeProject(project));
 }

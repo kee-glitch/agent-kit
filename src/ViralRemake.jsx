@@ -44,12 +44,14 @@ import {
   segmentDocuments,
   steps,
   storyboardText,
+  structureDemo,
 } from "./viral-remake-data";
 import {
   ASPECT_RATIOS,
   BOUND_ASSET_ACCEPT,
   GENERAL_ASSET_ACCEPT,
   STORAGE_KEY,
+  getStorageKey,
   addSequencedAssets,
   advanceStep,
   beginLatestRequest,
@@ -84,6 +86,7 @@ import {
   upsertBoundReplacementAsset,
 } from "./viral-remake-state";
 import "./viral-remake.css";
+import OriginalRewrite from "./OriginalRewrite";
 
 const MODELS = [
   "seedance 2.0 mini",
@@ -143,7 +146,7 @@ function ModeSelection({ onSelect, notify }) {
             <p>{mode.description}</p>
             <button
               disabled={!mode.active}
-              onClick={() => mode.active && onSelect()}
+              onClick={() => mode.active && onSelect(mode.id)}
             >
               {mode.active ? (
                 <>
@@ -158,7 +161,7 @@ function ModeSelection({ onSelect, notify }) {
         ))}
       </section>
       <footer className="remake-mode-footer">
-        <span>当前仅开放元素替换模式</span>
+        <span>当前开放元素替换与原片仿写、结构仿写</span>
         <i />
         <span>所有处理均为前端 Demo 演示</span>
       </footer>
@@ -166,7 +169,7 @@ function ModeSelection({ onSelect, notify }) {
   );
 }
 
-function WorkflowHeader({ project, onBack, onStep, onSave, onReset }) {
+function WorkflowHeader({ project, mode, onBack, onStep, onSave, onReset }) {
   return (
     <>
       <header className="remake-project-header">
@@ -175,7 +178,7 @@ function WorkflowHeader({ project, onBack, onStep, onSave, onReset }) {
             <ArrowLeft />
           </button>
           <div>
-            <span>爆款复刻 / 元素替换</span>
+            <span>爆款复刻 / {mode === "structure" ? "结构仿写" : "元素替换"}</span>
             <strong>{project.videoName || "未命名项目"}</strong>
           </div>
         </div>
@@ -1063,7 +1066,7 @@ function MarkdownDocumentPreview({ title, meta, value, onRegenerate }) {
   );
 }
 
-function StepTwo({ project, setProject, onNext, onOpen, notify }) {
+function StepTwo({ project, mode, setProject, onNext, onOpen, notify }) {
   const value = project.documents.breakdown ?? breakdownText;
   const latestBoundRequestRef = useRef(new Map());
   const latestAssetRequestRef = useRef(new Map());
@@ -1148,12 +1151,21 @@ function StepTwo({ project, setProject, onNext, onOpen, notify }) {
       />
       <div className="remake-section-title">
         <div>
-          <h2>原视频逐秒分镜</h2>
-          <p>每 15 秒生成一张总览图，点击查看大图。</p>
+          <h2>{mode === "structure" ? "原视频结构分镜" : "原视频逐秒分镜"}</h2>
+          <p>{mode === "structure" ? "以 1:1 总览图呈现原片镜头结构，点击查看大图。" : "每 15 秒生成一张总览图，点击查看大图。"}</p>
         </div>
-        <span>3 张 · 42 帧</span>
+        <span>{mode === "structure" ? "1 张 · 42 镜头" : "3 张 · 42 帧"}</span>
       </div>
-      <BoardGallery originals onOpen={onOpen} />
+      {mode === "structure" ? (
+        <button
+          className="remake-structure-board"
+          onClick={() => onOpen(structureDemo.referenceImage, "原视频结构分镜")}
+          aria-label="查看原视频结构分镜大图"
+        >
+          <img src={structureDemo.referenceImage} alt="原视频结构分镜" />
+          <span><Maximize2 />查看大图</span>
+        </button>
+      ) : <BoardGallery originals onOpen={onOpen} />}
         </div>
 
         <aside className="remake-step-two-sidebar" aria-label="替换配置">
@@ -1248,6 +1260,7 @@ function StepTwo({ project, setProject, onNext, onOpen, notify }) {
 
 function StepThree({
   project,
+  mode,
   setProject,
   onNext,
   onOpen,
@@ -1261,11 +1274,11 @@ function StepThree({
       <div className="remake-stage-heading">
         <div>
           <span className="remake-kicker">STEP 03</span>
-          <h1>校对替换结果</h1>
-          <p>人物、产品与方糖已写入新故事面板，并生成逐秒画面对照。</p>
+          <h1>{mode === "structure" ? "校对结构仿写结果" : "校对替换结果"}</h1>
+          <p>{mode === "structure" ? "新的叙事结构已写入故事面板，请确认内容后提取片段。" : "人物、产品与方糖已写入新故事面板，并生成逐秒画面对照。"}</p>
         </div>
       </div>
-      <article className="remake-document remake-comparison-card">
+      {mode !== "structure" && <article className="remake-document remake-comparison-card">
         <header>
           <div>
             <span>
@@ -1293,9 +1306,9 @@ function StepThree({
           <BoardGallery onOpen={onOpen} />
         </div>
         </div>
-      </article>
+      </article>}
       <DocumentEditor
-        title="替换后的故事面板"
+        title={mode === "structure" ? "结构仿写故事面板" : "替换后的故事面板"}
         value={value}
         assets={project.assets}
         onSave={save}
@@ -1820,7 +1833,7 @@ function StepFive({ project, setProject, notify, openSegment }) {
 }
 
 export default function ViralRemake() {
-  const [selected, setSelected] = useState(false);
+  const [selected, setSelected] = useState(null);
   const [project, setProject] = useState(() =>
     createInitialProject(localStorage.getItem(STORAGE_KEY) || {}),
   );
@@ -1874,7 +1887,7 @@ export default function ViralRemake() {
     setViewer({ src, title });
   };
   const save = () => {
-    persistProject(localStorage, project);
+    persistProject(localStorage, project, getStorageKey(selected));
     notify("草稿已保存到当前浏览器");
   };
   const next = () => setProject((value) => advanceStep(value));
@@ -1884,6 +1897,7 @@ export default function ViralRemake() {
       videoName: "需要复刻的模板视频.mp4",
       request: demoRequest,
       model: "seedance 2.0",
+      aspectRatio: selected === "structure" ? structureDemo.aspectRatio : value.aspectRatio,
       assets: demoAssets,
       assetCounters: { image: 3, audio: 0, video: 0 },
       documents: {
@@ -1908,20 +1922,26 @@ export default function ViralRemake() {
   };
   const reset = () => {
     if (!window.confirm("确定清空当前草稿并重新开始吗？")) return;
-    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(getStorageKey(selected));
     setProject(createInitialProject());
-    setSelected(false);
+    setSelected(null);
     notify("项目已重置");
   };
   return (
     <main className="viral-remake-shell">
       {!selected ? (
-        <ModeSelection onSelect={() => setSelected(true)} notify={notify} />
+        <ModeSelection onSelect={(mode) => {
+          setSelected(mode);
+          setProject(createInitialProject(localStorage.getItem(getStorageKey(mode)) || {}));
+        }} notify={notify} />
+      ) : selected === "rewrite" ? (
+        <OriginalRewrite onBack={() => setSelected(null)} notify={notify} />
       ) : (
         <div className="remake-workspace">
           <WorkflowHeader
             project={project}
-            onBack={() => setSelected(false)}
+            mode={selected}
+            onBack={() => setSelected(null)}
             onStep={(step) =>
               setProject((value) => setCurrentStep(value, step))
             }
@@ -1940,6 +1960,7 @@ export default function ViralRemake() {
           {project.step === 2 && (
             <StepTwo
               project={project}
+              mode={selected}
               setProject={setProject}
               onNext={next}
           onOpen={openViewer}
@@ -1949,6 +1970,7 @@ export default function ViralRemake() {
           {project.step === 3 && (
             <StepThree
               project={project}
+              mode={selected}
               setProject={setProject}
               onNext={next}
             onOpen={openViewer}
