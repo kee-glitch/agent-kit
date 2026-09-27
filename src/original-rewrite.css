@@ -18,7 +18,7 @@
 .rewrite-project-header button.primary{border-color:var(--color-bg-inverse);background:var(--color-bg-inverse);color:var(--color-text-inverse)}
 .rewrite-project-header>div:first-child>button:first-child{width:34px;height:34px;min-height:34px;padding:0}
 .rewrite-project-header svg{width:16px;height:16px}
-.rewrite-steps{display:grid;grid-template-columns:repeat(6,minmax(150px,1fr));width:min(1320px,100%);margin-inline:auto;box-sizing:border-box;padding:24px clamp(24px,4vw,56px);overflow-x:auto;border-radius:0 0 var(--radius-card-sm) var(--radius-card-sm);border-bottom:1px solid var(--color-border-subtle);background:var(--color-bg-surface)}
+.rewrite-steps{display:grid;grid-template-columns:repeat(6,minmax(150px,1fr));width:min(1320px,100%);margin-inline:auto;box-sizing:border-box;padding:24px clamp(24px,4vw,56px);overflow-x:auto;border-radius:0 0 var(--radius-card-sm) var(--radius-card-sm);border:1px solid var(--color-border-subtle);background:var(--color-bg-surface)}
 .rewrite-steps button{position:relative;display:flex;height:auto;min-height:28px;align-items:center;justify-content:center;gap:0;padding:0;border:0;background:transparent;color:var(--color-text-tertiary);font:var(--type-label-sm);white-space:nowrap;cursor:pointer}
 .rewrite-steps button:disabled{border:0;background:transparent;color:var(--color-text-tertiary)}
 .rewrite-steps button:hover{background:transparent}
