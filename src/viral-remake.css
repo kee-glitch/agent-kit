@@ -1353,17 +1353,7 @@
 }
 
 .remake-segment-editors > article.selected {
-  border-color: var(--color-bg-inverse);
-}
-
-.remake-segment-editors > article.selected::after {
-  position: absolute;
-  z-index: 3;
-  inset: -1px;
   border: 2px solid var(--color-bg-inverse);
-  border-radius: inherit;
-  content: "";
-  pointer-events: none;
 }
 
 .remake-segment-footer-meta {

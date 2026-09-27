@@ -179,11 +179,8 @@ test("片段卡片移除复选框并使用黑色边框表示选择状态", () =>
     viralRemakeSource,
     /<header[\s\S]{0,180}?role="button"/,
   );
-  assert.match(selectedCardRule, /border-color:\s*var\(--color-bg-inverse\)/);
-  assert.match(selectedOutlineRule, /position:\s*absolute/);
-  assert.match(selectedOutlineRule, /inset:\s*-1px/);
-  assert.match(selectedOutlineRule, /z-index:\s*3/);
-  assert.match(selectedOutlineRule, /pointer-events:\s*none/);
+  assert.match(selectedCardRule, /border:\s*2px solid var\(--color-bg-inverse\)/);
+  assert.equal(selectedOutlineRule, "");
 });
 
 test("所有遮罩弹窗统一使用文字关闭按钮", () => {
