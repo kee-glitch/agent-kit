@@ -52,4 +52,9 @@
   --node-handle-bg: #fff;
   --media-preview-bg: #111827;
   --dialog-overlay: rgb(0 0 0 / 25%);
+  --menu-icon-text: #73819a;
+  --menu-heading-text: #7c879b;
+  --menu-divider: #e6e9ee;
+  --menu-disabled-text: #536075;
+  --canvas-overlay: rgb(0 0 0 / 20%);
 }

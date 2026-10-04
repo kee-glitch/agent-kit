@@ -174,26 +174,26 @@
 
 .node-create-menu > button > span {
   width: 22px;
-  color: #73819a;
+  color: var(--menu-icon-text);
   font-size: 17px;
   text-align: center;
 }
 
 .node-create-menu__heading {
   padding: 2px 0 7px;
-  color: #7c879b;
+  color: var(--menu-heading-text);
   font-size: 13px;
 }
 
 .node-create-menu__divider {
   height: 1px;
   margin: 6px 0 9px;
-  background: #e6e9ee;
+  background: var(--menu-divider);
 }
 
 .node-create-menu > .node-create-menu__resource:disabled {
   opacity: 1;
-  color: #536075;
+  color: var(--menu-disabled-text);
   cursor: default;
 }
 
@@ -215,7 +215,7 @@
   display: grid;
   place-items: center;
   padding: 16px;
-  background: rgb(0 0 0 / 20%);
+  background: var(--canvas-overlay);
 }
 
 .delete-selection-dialog {

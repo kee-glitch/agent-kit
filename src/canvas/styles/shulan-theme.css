@@ -52,6 +52,11 @@
   --node-handle-bg: var(--color-bg-surface);
   --media-preview-bg: var(--color-bg-inverse);
   --dialog-overlay: color-mix(in srgb, var(--color-overlay-strong) 25%, transparent);
+  --menu-icon-text: var(--color-text-secondary);
+  --menu-heading-text: var(--color-text-tertiary);
+  --menu-divider: var(--color-border-subtle);
+  --menu-disabled-text: var(--color-text-disabled);
+  --canvas-overlay: color-mix(in srgb, var(--color-overlay-strong) 20%, transparent);
   font-family: var(--font-ui);
 }
 
