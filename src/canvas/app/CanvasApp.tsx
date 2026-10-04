@@ -4,9 +4,8 @@ import { CanvasSurface } from '../features/canvas/CanvasSurface'
 import { ViewControls } from '../features/canvas/ViewControls'
 import { WorkspaceShell } from '../features/workspace/WorkspaceShell'
 import { hydrateCanvasSession } from '../stores/useCanvasSessionStore'
-import type { CanvasTheme } from '../integration/canvasRoute'
 
-export function CanvasApp({ theme }: { theme: CanvasTheme }): JSX.Element {
+export function CanvasApp(): JSX.Element {
   const hydrated = useRef(false)
   const [sessionReady, setSessionReady] = useState(false)
   useEffect(() => {
@@ -22,7 +21,7 @@ export function CanvasApp({ theme }: { theme: CanvasTheme }): JSX.Element {
   }, [])
 
   return (
-    <div className="canvas-module" data-canvas-theme={theme} data-testid="canvas-theme-root">
+    <div className="canvas-module" data-canvas-theme="original" data-testid="canvas-theme-root">
       <ReactFlowProvider>
         <WorkspaceShell viewControls={sessionReady ? <ViewControls /> : undefined}>
           {sessionReady && <CanvasSurface />}

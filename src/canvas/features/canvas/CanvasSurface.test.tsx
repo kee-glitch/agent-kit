@@ -921,7 +921,7 @@ describe('CanvasSurface', () => {
     const snapshot = createEmptySnapshot('saved-canvas', now)
     snapshot.viewport = { x: 25, y: -40, zoom: 1.5 }
     saveCanvasSnapshot(localStorage, snapshot)
-    render(<CanvasApp theme="original" />)
+    render(<CanvasApp />)
     await waitFor(() => expect(screen.getByLabelText('当前缩放比例')).toHaveTextContent('150%'))
     expect(screen.getByRole('region', { name: '无限画布' }).querySelector('.react-flow__viewport'))
       .toHaveStyle({ transform: 'translate(25px,-40px) scale(1.5)' })

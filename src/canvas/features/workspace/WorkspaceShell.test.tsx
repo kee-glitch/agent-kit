@@ -10,7 +10,6 @@ import { CANVAS_STORAGE_KEY, saveCanvasSnapshot } from '../persistence/canvasSna
 import { hydrateCanvasSession, markSaved, renameCanvas, updateViewport, useCanvasSessionStore } from '../../stores/useCanvasSessionStore'
 import { WorkspaceShell } from './WorkspaceShell'
 import { useCanvasInteractionStore } from '../../stores/useCanvasInteractionStore'
-import '../../styles/shulan-theme.css'
 
 function render(ui: ReactElement) { return renderUI(<ReactFlowProvider>{ui}</ReactFlowProvider>) }
 
@@ -23,11 +22,10 @@ beforeEach(() => {
 })
 
 describe('WorkspaceShell', () => {
-  it('uses_the_shared_workspace_tree_under_the_shulan_theme_contract', () => {
-    render(<CanvasApp theme="shulan" />)
+  it('uses_the_retained_original_canvas_theme', () => {
+    render(<CanvasApp />)
     const root = screen.getByTestId('canvas-theme-root')
-    expect(root).toHaveAttribute('data-canvas-theme', 'shulan')
-    expect(getComputedStyle(root).getPropertyValue('--surface').trim()).toBe('var(--color-bg-surface)')
+    expect(root).toHaveAttribute('data-canvas-theme', 'original')
     expect(screen.getByRole('toolbar', { name: '创作工具' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '添加节点' })).toBeVisible()
   })
@@ -118,7 +116,7 @@ describe('WorkspaceShell', () => {
 
   it('keeps_the_recovery_notice_during_strict_mode_startup', () => {
     localStorage.setItem(CANVAS_STORAGE_KEY, '{broken')
-    render(<StrictMode><CanvasApp theme="original" /></StrictMode>)
+    render(<StrictMode><CanvasApp /></StrictMode>)
     expect(screen.getAllByRole('alert')).toHaveLength(1)
     expect(screen.getByRole('alert')).toHaveTextContent('本地画布已安全恢复')
   })
@@ -160,7 +158,7 @@ describe('WorkspaceShell', () => {
       throw new DOMException('Blocked storage', 'SecurityError')
     })
     try {
-      render(<CanvasApp theme="original" />)
+      render(<CanvasApp />)
       expect(screen.getByRole('main', { name: '无限画布工作台' })).toBeInTheDocument()
       expect(screen.getByRole('status', { name: '本地保存状态' })).toHaveTextContent('本地保存未确认')
       const user = userEvent.setup()
@@ -179,7 +177,7 @@ describe('WorkspaceShell', () => {
     snapshot.canvas.name = '原有画布'
     saveCanvasSnapshot(storage, snapshot)
     const original = storage.getItem(CANVAS_STORAGE_KEY)
-    const previousApp = render(<CanvasApp theme="original" />)
+    const previousApp = render(<CanvasApp />)
     expect(screen.getByRole('textbox', { name: '画布名称' })).toHaveValue('原有画布')
     previousApp.unmount()
 
@@ -187,7 +185,7 @@ describe('WorkspaceShell', () => {
       throw new DOMException('Blocked storage', 'SecurityError')
     })
     try {
-      render(<CanvasApp theme="original" />)
+      render(<CanvasApp />)
       const user = userEvent.setup()
       const title = screen.getByRole('textbox', { name: '画布名称' })
       await user.clear(title)

@@ -4,11 +4,12 @@ import { CanvasApp } from './CanvasApp'
 
 describe('App', () => {
   it('renders_the_workspace_root', () => {
-    render(<CanvasApp theme="original" />)
+    render(<CanvasApp />)
 
     expect(
       screen.getByRole('main', { name: '无限画布工作台' }),
     ).toBeInTheDocument()
+    expect(screen.getByTestId('canvas-theme-root')).toHaveAttribute('data-canvas-theme', 'original')
   })
 
   it('cleans_up_between_tests', () => {
