@@ -5,18 +5,32 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "test": "node --test src/*.test.js",
+    "test": "node --test src/*.test.js && vitest run src/canvas",
+    "test:legacy": "node --test src/*.test.js",
+    "test:canvas": "vitest run src/canvas",
     "build": "vite build --base=/agent-kit/",
     "preview": "vite preview"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
+    "@xyflow/react": "12.12.0",
     "gsap": "latest",
     "lucide-react": "latest",
     "react": "latest",
     "react-dom": "latest",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
-    "vite": "latest"
+    "vite": "latest",
+    "zustand": "5.0.15"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "7.0.1",
+    "@testing-library/react": "16.3.3",
+    "@types/node": "26.6.4",
+    "@types/react": "19.2.2",
+    "@types/react-dom": "19.2.2",
+    "jsdom": "30.1.1",
+    "typescript": "7.0.2",
+    "vitest": "5.0.3"
   }
 }
