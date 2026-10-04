@@ -1,0 +1,58 @@
+.canvas-module,
+.canvas-module * {
+  box-sizing: border-box;
+}
+
+.canvas-module {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  color: var(--text-primary);
+  background: var(--canvas-bg);
+  font-family: Inter, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.canvas-module button,
+.canvas-module input {
+  font: inherit;
+  color: inherit;
+}
+
+.canvas-module button {
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.canvas-module button:hover:not(:disabled) {
+  color: var(--accent);
+  background: var(--surface-hover);
+}
+
+.canvas-module :focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+
+.canvas-module :disabled {
+  color: var(--text-muted);
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .canvas-module,
+  .canvas-module *,
+  .canvas-module *::before,
+  .canvas-module *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

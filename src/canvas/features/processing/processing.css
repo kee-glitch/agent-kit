@@ -1,0 +1,6 @@
+.processing-menu { position: relative; }
+.processing-menu [role='menu'] { display: grid; gap: 4px; margin-top: 4px; padding: 6px; border: 1px solid var(--border-subtle); border-radius: 8px; background: var(--surface); box-shadow: var(--shadow-floating); }
+.processing-menu [role='menuitem'] { padding: 6px 8px; border: 0; border-radius: 6px; background: var(--canvas-bg); text-align: left; }
+.processing-panel { display: grid; gap: 8px; margin-top: 8px; }
+.processing-panel label { display: grid; gap: 4px; font-size: 12px; }
+.processing-panel textarea { min-height: 52px; resize: vertical; }

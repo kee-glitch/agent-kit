@@ -1,0 +1,6 @@
+.media-editor { position: fixed; z-index: 60; right: 16px; bottom: 16px; left: 84px; display: grid; grid-template-columns: minmax(220px, 1fr) 2fr; gap: 14px; padding: 16px; border: 1px solid var(--border-subtle); border-radius: var(--radius-panel); background: var(--surface); box-shadow: var(--shadow-floating); }
+.media-editor header,.media-editor footer { grid-column: 1 / -1; display: flex; justify-content: space-between; }
+.media-editor__preview { display: grid; gap: 6px; }.media-editor__preview video { width: 100%; min-height: 120px; background: #111827; border-radius: 10px; }
+.timeline-range { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }.timeline-range output { grid-column: 1 / -1; }
+.editor-dialog-backdrop { position: fixed; z-index: 70; inset: 0; display: grid; place-items: center; background: rgb(0 0 0 / 25%); }
+.editor-dialog-backdrop section { width: min(420px, calc(100vw - 32px)); padding: 22px; border-radius: 12px; background: var(--surface); }.editor-dialog-backdrop section div { display: flex; justify-content: flex-end; gap: 8px; }
