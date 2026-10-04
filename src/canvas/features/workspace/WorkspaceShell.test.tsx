@@ -10,6 +10,7 @@ import { CANVAS_STORAGE_KEY, saveCanvasSnapshot } from '../persistence/canvasSna
 import { hydrateCanvasSession, markSaved, renameCanvas, updateViewport, useCanvasSessionStore } from '../../stores/useCanvasSessionStore'
 import { WorkspaceShell } from './WorkspaceShell'
 import { useCanvasInteractionStore } from '../../stores/useCanvasInteractionStore'
+import '../../styles/shulan-theme.css'
 
 function render(ui: ReactElement) { return renderUI(<ReactFlowProvider>{ui}</ReactFlowProvider>) }
 
@@ -22,6 +23,15 @@ beforeEach(() => {
 })
 
 describe('WorkspaceShell', () => {
+  it('uses_the_shared_workspace_tree_under_the_shulan_theme_contract', () => {
+    render(<CanvasApp theme="shulan" />)
+    const root = screen.getByTestId('canvas-theme-root')
+    expect(root).toHaveAttribute('data-canvas-theme', 'shulan')
+    expect(getComputedStyle(root).getPropertyValue('--surface').trim()).toBe('var(--color-bg-surface)')
+    expect(screen.getByRole('toolbar', { name: '创作工具' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '添加节点' })).toBeVisible()
+  })
+
   it('renders_only_the_approved_top_controls', () => {
     render(<WorkspaceShell />)
     expect(screen.getByRole('button', { name: '项目菜单' })).toBeVisible()

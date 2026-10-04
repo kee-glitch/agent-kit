@@ -1,0 +1,42 @@
+.canvas-module[data-canvas-theme="shulan"] {
+  --canvas-bg: var(--color-bg-base);
+  --surface: var(--color-bg-surface);
+  --surface-raised: var(--color-bg-elevated);
+  --surface-hover: var(--color-interaction-hover);
+  --text-primary: var(--color-text-primary);
+  --text-muted: var(--color-text-secondary);
+  --border-subtle: var(--color-border-default);
+  --accent: var(--color-border-focus);
+  --focus-ring: var(--color-border-focus);
+  --radius-panel: var(--radius-card);
+  --shadow-floating: var(--shadow-float);
+  --toolbar-width: 56px;
+  --grid-dot: var(--color-border-default);
+  font-family: var(--font-ui);
+}
+
+.canvas-module[data-canvas-theme="shulan"] .top-project-bar::before,
+.canvas-module[data-canvas-theme="shulan"] .share-control,
+.canvas-module[data-canvas-theme="shulan"] .create-tool-rail,
+.canvas-module[data-canvas-theme="shulan"] .view-controls,
+.canvas-module[data-canvas-theme="shulan"] .canvas-node,
+.canvas-module[data-canvas-theme="shulan"] .node-create-menu {
+  border-color: var(--color-border-subtle);
+  box-shadow: var(--shadow-default);
+}
+
+.canvas-module[data-canvas-theme="shulan"] .canvas-node[data-selected="true"] {
+  border-color: var(--color-border-focus);
+  box-shadow: var(--shadow-active);
+}
+
+.canvas-module[data-canvas-theme="shulan"] .canvas-node__control,
+.canvas-module[data-canvas-theme="shulan"] .node-create-menu > button,
+.canvas-module[data-canvas-theme="shulan"] .processing-menu button {
+  border-radius: var(--radius-control);
+}
+
+.canvas-module[data-canvas-theme="shulan"] .canvas-node__title,
+.canvas-module[data-canvas-theme="shulan"] .canvas-name {
+  font-family: var(--font-ui);
+}
