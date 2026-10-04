@@ -47,6 +47,8 @@ describe('canvas route integration', () => {
 
     window.location.hash = '/canvas/original'
     const view = render(<Harness />)
+    expect(screen.getAllByRole('main')).toHaveLength(1)
+    expect(screen.getByRole('button', { name: '原始外观' })).toHaveAttribute('aria-pressed', 'true')
     const before = useCanvasSessionStore.getState().snapshot
     expect(before.nodeOrder).toEqual(['seed', 'target'])
     expect(before.edgeOrder).toEqual(['shared'])
@@ -55,6 +57,7 @@ describe('canvas route integration', () => {
     const after = useCanvasSessionStore.getState().snapshot
 
     expect(screen.getByTestId('canvas-theme-root')).toHaveAttribute('data-canvas-theme', 'shulan')
+    expect(screen.getByRole('button', { name: 'ShuLan 设计' })).toHaveAttribute('aria-pressed', 'true')
     expect(after.nodeOrder).toEqual(before.nodeOrder)
     expect(after.edgeOrder).toEqual(before.edgeOrder)
     expect(after.viewport).toEqual(before.viewport)
