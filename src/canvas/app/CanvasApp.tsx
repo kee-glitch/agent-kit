@@ -22,7 +22,7 @@ export function CanvasApp({ theme }: { theme: CanvasTheme }): JSX.Element {
   }, [])
 
   return (
-    <div className="canvas-module" data-canvas-theme={theme}>
+    <div className="canvas-module" data-canvas-theme={theme} data-testid="canvas-theme-root">
       <ReactFlowProvider>
         <WorkspaceShell viewControls={sessionReady ? <ViewControls /> : undefined}>
           {sessionReady && <CanvasSurface />}
