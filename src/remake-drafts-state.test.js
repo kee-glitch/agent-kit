@@ -1,8 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  ELEMENT_COLUMNS_DRAFTS_KEY,
   ELEMENT_DRAFTS_KEY,
   REWRITE_DRAFTS_KEY,
+  REWRITE_COLUMNS_DRAFTS_KEY,
   STRUCTURE_DRAFTS_KEY,
   createDraftCollection,
   deleteDraft,
@@ -17,6 +19,24 @@ test("三个复刻模块使用独立的草稿记录存储键", () => {
   assert.notEqual(ELEMENT_DRAFTS_KEY, REWRITE_DRAFTS_KEY);
   assert.notEqual(ELEMENT_DRAFTS_KEY, STRUCTURE_DRAFTS_KEY);
   assert.notEqual(REWRITE_DRAFTS_KEY, STRUCTURE_DRAFTS_KEY);
+});
+
+test("元素替换四屏入口使用独立草稿记录", () => {
+  assert.notEqual(ELEMENT_COLUMNS_DRAFTS_KEY, ELEMENT_DRAFTS_KEY);
+  const [draft] = createDraftCollection([
+    { id: "element-columns-1", title: "四屏替换", mode: "element-columns", project: {} },
+  ]);
+  assert.equal(draft.mode, "element-columns");
+  assert.equal(getDraftModeLabel(draft.mode), "元素替换（四屏）");
+});
+
+test("原片仿写四屏工作台使用独立草稿记录", () => {
+  assert.notEqual(REWRITE_COLUMNS_DRAFTS_KEY, REWRITE_DRAFTS_KEY);
+  const [draft] = createDraftCollection([
+    { id: "rewrite-columns-1", title: "四屏仿写", mode: "rewrite-columns", project: {} },
+  ]);
+  assert.equal(draft.mode, "rewrite-columns");
+  assert.equal(getDraftModeLabel(draft.mode), "原片仿写（四屏）");
 });
 
 test("结构仿写草稿会保留所属模式", () => {

@@ -21,8 +21,10 @@ import {
   Maximize2,
   Play,
   Plus,
+  RectangleVertical,
   RefreshCw,
   Save,
+  ScanLine,
   Sparkles,
   Trash2,
   Upload,
@@ -32,6 +34,8 @@ import {
 } from "lucide-react";
 import {
   breakdownText,
+  demoAssets,
+  demoRequest,
   modes,
   originalBoards,
   originalReplacementResources,
@@ -53,17 +57,25 @@ import {
   canAdvance,
   clearRunningStatuses,
   clearVideo,
+  completeWorkflowStep,
   createInitialProject,
+  finishColumnsBreakdown,
   findBoundReplacementAsset,
+  formatGenerationTimestamp,
+  getColumnsBreakdownStatus,
   getTrappedFocusTarget,
   isBackdropSelfClick,
   isLatestRequest,
   getMediaType,
+  getPendingRedrawSegmentIds,
+  getRedrawReadySegmentIds,
   getSelectedSegmentIds,
+  toggleRedrawReadySelection,
   toggleAllSegmentSelections,
   nextAssetLabel,
   persistProject,
   serializeProject,
+  startColumnsBreakdown,
   queueGeneration,
   removeReplacementAsset,
   replaceSequencedAsset,
@@ -76,10 +88,10 @@ import {
 import BoundReplacementRow from "./BoundReplacementRow";
 import VideoPreviewModal from "./VideoPreviewModal";
 import "./viral-remake.css";
-import OriginalRewrite from "./OriginalRewrite";
 import RemakeDraftSidebar, { useRemakeDrafts } from "./RemakeDraftSidebar";
-import { ELEMENT_DRAFTS_KEY, STRUCTURE_DRAFTS_KEY } from "./remake-drafts-state";
+import { ELEMENT_COLUMNS_DRAFTS_KEY, ELEMENT_DRAFTS_KEY, REWRITE_COLUMNS_DRAFTS_KEY, STRUCTURE_COLUMNS_DRAFTS_KEY, STRUCTURE_DRAFTS_KEY } from "./remake-drafts-state";
 import { createReplacementAssetsSnapshot, createReplacementResultLog, createVideoBreakdownLog, logRemakeFlow } from "./remake-flow-debug";
+import { rewriteDemo, rewriteSegments } from "./original-rewrite-data";
 
 const MODELS = [
   "seedance 2.0 mini",
@@ -87,6 +99,40 @@ const MODELS = [
   "seedance 2.0",
   "seedance 2.5",
 ];
+
+const rewriteColumnsDemo = {
+  aspectRatio: "9:16",
+  referenceImage: rewriteDemo.storyboardPath,
+  request: rewriteDemo.request,
+  replacementResources: rewriteDemo.referenceAssets.map((asset) => ({
+    id: asset.sourceId,
+    role: asset.role,
+    title: asset.label,
+    description: asset.name,
+  })),
+  assets: rewriteDemo.referenceAssets.map((asset) => ({ ...asset, type: "image" })),
+  storyboard: rewriteDemo.rewriteDocument,
+  styleGuide: rewriteDemo.rewriteDocument.split("### 2. 分镜卡片")[0].trim(),
+  segments: rewriteSegments.map((segment) => ({
+    ...segment,
+    summary: segment.title,
+    content: segment.document,
+    video: segment.videoPath,
+  })),
+  breakdown: rewriteDemo.breakdown,
+};
+
+const elementColumnsDemo = {
+  aspectRatio: "9:16",
+  referenceImage: originalBoards[0],
+  request: demoRequest,
+  replacementResources: originalReplacementResources,
+  assets: demoAssets,
+  storyboard: storyboardText,
+  styleGuide: storyboardText.split("### 2. 分镜卡片")[0].trim(),
+  segments: segmentDocuments,
+  breakdown: breakdownText,
+};
 
 function ModeSelection({ onSelect, notify }) {
   return (
@@ -112,7 +158,6 @@ function ModeSelection({ onSelect, notify }) {
             key={mode.id}
           >
             <div className="remake-mode-card-top">
-              <span>{mode.index}</span>
               {mode.active ? (
                 <em>
                   <Sparkles />
@@ -126,9 +171,9 @@ function ModeSelection({ onSelect, notify }) {
               )}
             </div>
             <div className="remake-mode-icon">
-              {mode.id === "element" ? (
+              {mode.id === "element" || mode.id === "element-columns" ? (
                 <Layers3 />
-              ) : mode.id === "rewrite" ? (
+              ) : mode.id === "rewrite-columns" ? (
                 <WandSparkles />
               ) : (
                 <Film />
@@ -154,7 +199,7 @@ function ModeSelection({ onSelect, notify }) {
         ))}
       </section>
       <footer className="remake-mode-footer">
-        <span>当前开放元素替换与原片仿写、结构仿写</span>
+        <span>当前开放元素替换、结构仿写与原片仿写</span>
         <i />
         <span>所有处理均为前端 Demo 演示</span>
       </footer>
@@ -1290,6 +1335,569 @@ function StepFour({
   );
 }
 
+function StructureColumnsWorkspace({
+  mode,
+  project,
+  setProject,
+  onBack,
+  onSave,
+  onDemo,
+  onOpen,
+  notify,
+}) {
+  const isElementColumns = mode === "element-columns";
+  const isRewriteColumns = mode === "rewrite-columns";
+  const columnsDemo = isElementColumns ? elementColumnsDemo : isRewriteColumns ? rewriteColumnsDemo : structureDemo;
+  const workflowName = isElementColumns ? "元素替换" : isRewriteColumns ? "原片仿写" : "结构仿写";
+  const workspaceLabel = isElementColumns ? "元素替换四屏工作区" : isRewriteColumns ? "原片仿写四屏工作区" : "结构仿写四列工作区";
+  const storyboardActionLabel = isElementColumns ? "下一步：生成替换故事面板" : isRewriteColumns ? "下一步：生成原片仿写故事面板" : "下一步：生成结构仿写故事面板";
+  const storyboardLoadingLabel = isElementColumns ? "正在生成替换故事面板..." : isRewriteColumns ? "正在生成原片仿写故事面板..." : "正在生成结构仿写故事面板...";
+  const [videoPreview, setVideoPreview] = useState(null);
+  const [breakdownOpen, setBreakdownOpen] = useState(false);
+  const [replacementLoading, setReplacementLoading] = useState(false);
+  const [replacementConfirmOpen, setReplacementConfirmOpen] = useState(false);
+  const [storyboardLoading, setStoryboardLoading] = useState(false);
+  const [storyboardConfirmOpen, setStoryboardConfirmOpen] = useState(false);
+  const [storyboardOpen, setStoryboardOpen] = useState(false);
+  const [segmentExtractionLoading, setSegmentExtractionLoading] = useState(false);
+  const [extractedSegments, setExtractedSegments] = useState([]);
+  const [extractedSegmentOpen, setExtractedSegmentOpen] = useState(null);
+  const [selectedExtractedSegments, setSelectedExtractedSegments] = useState(new Set());
+  const [redrawRequiredOpen, setRedrawRequiredOpen] = useState(false);
+  const generationRecords = project.generationRecords;
+  const redrawResults = isRewriteColumns || isElementColumns ? project.redrawRecords : [];
+  const pendingRedrawSegmentIds = getPendingRedrawSegmentIds(extractedSegments);
+  const redrawReadySegmentIds = getRedrawReadySegmentIds(extractedSegments);
+  const unifiedResults = [
+    ...redrawResults.map((record) => ({ kind: "image", record, sortAt: record.generatedAt })),
+    ...generationRecords.map((record) => ({ kind: "video", record, sortAt: record.generatedAt || record.createdAt || "" })),
+  ].sort((left, right) => (Date.parse(right.sortAt) || 0) - (Date.parse(left.sortAt) || 0));
+  const setRedrawRecords = (updater) => setProject((value) => ({
+    ...value,
+    redrawRecords: typeof updater === "function" ? updater(value.redrawRecords) : updater,
+  }));
+  const setGenerationRecords = (updater) => setProject((value) => ({
+    ...value,
+    generationRecords: typeof updater === "function" ? updater(value.generationRecords) : updater,
+  }));
+  const [generationSnapshotOpen, setGenerationSnapshotOpen] = useState(null);
+  const breakdownTimer = useRef(null);
+  const replacementTimer = useRef(null);
+  const storyboardTimer = useRef(null);
+  const segmentExtractionTimer = useRef(null);
+  const redrawTimers = useRef(new Set());
+  const redrawBatchCounter = useRef(0);
+  const generationBatchCounter = useRef(0);
+  const batchGenerationTimers = useRef(new Set());
+  const breakdownStatus = getColumnsBreakdownStatus(project);
+  const breakdownReady = breakdownStatus === "done";
+  useEffect(() => () => {
+    clearTimeout(breakdownTimer.current);
+    clearTimeout(replacementTimer.current);
+    clearTimeout(storyboardTimer.current);
+    clearTimeout(segmentExtractionTimer.current);
+    redrawTimers.current.forEach((timer) => clearTimeout(timer));
+    redrawTimers.current.clear();
+    batchGenerationTimers.current.forEach((timer) => clearTimeout(timer));
+    batchGenerationTimers.current.clear();
+  }, []);
+  const beginBreakdown = () => {
+    if (!project.videoName) {
+      notify("请先上传需要拆解的视频");
+      return;
+    }
+    clearTimeout(breakdownTimer.current);
+    setProject((value) => startColumnsBreakdown(value));
+    breakdownTimer.current = window.setTimeout(() => {
+      setProject((value) => finishColumnsBreakdown(value));
+      notify("视频拆解完成");
+    }, 1200);
+  };
+  const loadReplacementAssets = (resetCurrent = false) => {
+    if (replacementLoading) return;
+    if (resetCurrent) {
+      setProject((value) => ({ ...value, assets: [], request: "" }));
+    }
+    setReplacementLoading(true);
+    clearTimeout(replacementTimer.current);
+    replacementTimer.current = window.setTimeout(() => {
+      setProject((value) => {
+        const next = completeWorkflowStep(value, 1);
+        return resetCurrent ? {
+          ...next,
+          assets: columnsDemo.assets,
+          assetCounters: { image: columnsDemo.assets.length, audio: 0, video: 0 },
+          request: columnsDemo.request,
+        } : next;
+      });
+      setReplacementLoading(false);
+    }, 1200);
+  };
+  const requestReplacementAssets = () => {
+    if (project.maxStep >= 2) {
+      setReplacementConfirmOpen(true);
+      return;
+    }
+    loadReplacementAssets();
+  };
+  const confirmReplacementReload = () => {
+    setReplacementConfirmOpen(false);
+    loadReplacementAssets(true);
+  };
+  const generateStoryboard = () => {
+    if (storyboardLoading) return;
+    setStoryboardLoading(true);
+    clearTimeout(storyboardTimer.current);
+    storyboardTimer.current = window.setTimeout(() => {
+      const generatedAt = new Date().toISOString();
+      redrawBatchCounter.current += 1;
+      const batchId = redrawBatchCounter.current;
+      const newRedrawRecords = isElementColumns ? columnsDemo.segments.map((segment, index) => ({
+        id: `replacement-${batchId}-${segment.id}-${generatedAt}`,
+        batchId,
+        segmentId: segment.id,
+        generatedAt,
+        snapshot: {
+          ...segment,
+          number: index + 1,
+          redrawPath: replacedBoards[index],
+        },
+      })) : [];
+      setProject((value) => {
+        const next = completeWorkflowStep(value, 2);
+        return {
+          ...next,
+          documents: { ...next.documents, storyboard: columnsDemo.storyboard },
+          redrawRecords: [...newRedrawRecords, ...next.redrawRecords],
+        };
+      });
+      setStoryboardLoading(false);
+    }, 1200);
+  };
+  const requestStoryboardGeneration = () => {
+    if (project.maxStep >= 3) {
+      setStoryboardConfirmOpen(true);
+      return;
+    }
+    generateStoryboard();
+  };
+  const confirmStoryboardRegeneration = () => {
+    setStoryboardConfirmOpen(false);
+    generateStoryboard();
+  };
+  const extractSegments = () => {
+    if (segmentExtractionLoading) return;
+    setSegmentExtractionLoading(true);
+    setExtractedSegments([]);
+    setSelectedExtractedSegments(new Set());
+    clearTimeout(segmentExtractionTimer.current);
+    segmentExtractionTimer.current = window.setTimeout(() => {
+      setExtractedSegments(columnsDemo.segments);
+      setSegmentExtractionLoading(false);
+    }, 1200);
+  };
+  const toggleExtractedSegment = (segmentId) => {
+    if (isRewriteColumns) {
+      const result = toggleRedrawReadySelection(selectedExtractedSegments, extractedSegments, segmentId);
+      if (result.blocked) {
+        setRedrawRequiredOpen(true);
+        return;
+      }
+      setSelectedExtractedSegments(result.selectedIds);
+      return;
+    }
+    setSelectedExtractedSegments((current) => {
+      const next = new Set(current);
+      if (next.has(segmentId)) next.delete(segmentId);
+      else next.add(segmentId);
+      return next;
+    });
+  };
+  const toggleAllExtractedSegments = () => {
+    const availableIds = isRewriteColumns ? redrawReadySegmentIds : extractedSegments.map((segment) => segment.id);
+    setSelectedExtractedSegments((current) =>
+      current.size === availableIds.length
+        ? new Set()
+        : new Set(availableIds),
+    );
+  };
+  const generateRedraws = (ids) => {
+    const selectedIds = new Set(ids);
+    const selectedSegments = extractedSegments.filter((segment) => selectedIds.has(segment.id));
+    redrawBatchCounter.current += 1;
+    const batchId = redrawBatchCounter.current;
+    setExtractedSegments((current) => current.map((segment) => selectedIds.has(segment.id) ? { ...segment, redrawStatus: "running" } : segment));
+    const timer = window.setTimeout(() => {
+      setExtractedSegments((current) => current.map((segment) => selectedIds.has(segment.id) ? { ...segment, redrawStatus: "done" } : segment));
+      const generatedAt = new Date().toISOString();
+      const newRecords = selectedSegments.map((segment) => ({
+        id: `redraw-${batchId}-${segment.id}-${generatedAt}`,
+        batchId,
+        segmentId: segment.id,
+        generatedAt,
+        snapshot: { ...segment, redrawStatus: "done" },
+      }));
+      setRedrawRecords((current) => [...newRecords, ...current]);
+      redrawTimers.current.delete(timer);
+    }, 900);
+    redrawTimers.current.add(timer);
+  };
+  const selectedRedrawsReady = !isRewriteColumns || [...selectedExtractedSegments].every((id) => extractedSegments.find((segment) => segment.id === id)?.redrawStatus === "done");
+  const batchGenerateSegments = () => {
+    if (selectedExtractedSegments.size === 0) return;
+    const selectedIds = [...selectedExtractedSegments];
+    generationBatchCounter.current += 1;
+    const batchId = generationBatchCounter.current;
+    const createdAt = new Date().toISOString();
+    const newRecords = selectedIds.map((segmentId) => {
+      const segment = columnsDemo.segments.find((item) => item.id === segmentId);
+      return {
+        id: `${batchId}-${segmentId}`,
+        batchId,
+        segmentId,
+        status: "running",
+        createdAt,
+        generatedAt: null,
+        snapshot: { ...segment },
+        assets: (project.assets.length ? project.assets : columnsDemo.assets).map((asset) => ({ ...asset })),
+      };
+    }).filter((record) => record.snapshot.id);
+    setGenerationRecords((current) => [...newRecords, ...current]);
+    setProject((value) => completeWorkflowStep(value, 3));
+    const timer = window.setTimeout(() => {
+      const generatedAt = new Date().toISOString();
+      setGenerationRecords((current) => current.map((record) =>
+        record.batchId === batchId ? { ...record, status: "done", generatedAt } : record,
+      ));
+      batchGenerationTimers.current.delete(timer);
+    }, 1800);
+    batchGenerationTimers.current.add(timer);
+  };
+  const chooseVideo = (event) => {
+    const file = event.target.files?.[0];
+    if (file) setProject((value) => replaceVideo(value, file.name));
+    event.target.value = "";
+  };
+  const uploadResource = async (event, resource) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const preview = await readFile(file);
+    setProject((value) => setBoundReplacementAsset(value, resource, {
+      id: `${resource.id}-${Date.now()}`,
+      name: file.name,
+      role: resource.role,
+      type: getMediaType(file),
+      sourceId: resource.id,
+      preview,
+    }));
+    event.target.value = "";
+  };
+  const readyCount = columnsDemo.replacementResources.filter((resource) =>
+    findBoundReplacementAsset(project.assets, resource.id),
+  ).length;
+  const replacementLocked = project.maxStep < 2 || replacementLoading;
+  const storyboardLocked = project.maxStep < 3 || storyboardLoading;
+  const breakdownDocument = project.documents.breakdown || columnsDemo.breakdown || breakdownText;
+  const breakdownSectionStart = breakdownDocument.indexOf("### 01｜视频定位");
+  const breakdownSectionEnd = breakdownDocument.indexOf("### 02｜转化逻辑");
+  const breakdownPreview = breakdownDocument
+    .slice(
+      breakdownSectionStart >= 0 ? breakdownSectionStart : 0,
+      breakdownSectionEnd > breakdownSectionStart ? breakdownSectionEnd : breakdownDocument.length,
+    )
+    .trim()
+    .split("\n")
+    .slice(0, 6)
+    .join("\n");
+
+  return (
+    <div className="remake-columns-workspace">
+      <header className="remake-project-header remake-columns-header">
+        <div className="remake-project-title">
+          <button aria-label="返回模式选择" onClick={onBack}><ArrowLeft /></button>
+          <div>
+            <span>爆款复刻 / {workflowName}</span>
+            <strong>{project.videoName || "未命名项目"}</strong>
+          </div>
+        </div>
+        <div className="remake-header-actions">
+          <button onClick={onDemo}><Sparkles />加载 Demo</button>
+          <button className="primary" onClick={onSave}><Save />保存草稿</button>
+        </div>
+      </header>
+
+      <div className="remake-four-columns" aria-label={workspaceLabel}>
+        <section className="remake-flow-column">
+          <header><span>STEP 01</span><i>1</i><h1>视频拆解</h1><p>上传、配置并查看拆解结果</p></header>
+          <article className="remake-column-card">
+            <h2>原视频与拆解配置</h2>
+            <label className={`remake-column-upload${project.videoName ? " has-file" : ""}`}>
+              <input type="file" accept="video/*" onChange={chooseVideo} />
+              <Video />
+              <b>{project.videoName || "上传需要拆解的视频"}</b>
+              <small>{project.videoName ? "视频已就绪" : "支持 MP4 / MOV 文件"}</small>
+            </label>
+            <div className="remake-column-fields">
+              <label>拆解模型<select value={project.model} onChange={(event) => setProject((value) => ({ ...value, model: event.target.value }))}>{MODELS.map((model) => <option key={model}>{model}</option>)}</select></label>
+              <label>画面比例<select value={project.aspectRatio} onChange={(event) => setProject((value) => ({ ...value, aspectRatio: event.target.value }))}>{ASPECT_RATIOS.map((ratio) => <option key={ratio}>{ratio}</option>)}</select></label>
+              <label>清晰度<select value={project.quality} onChange={(event) => setProject((value) => ({ ...value, quality: event.target.value }))}>{OUTPUT_QUALITIES.map((quality) => <option key={quality}>{quality}</option>)}</select></label>
+            </div>
+            <button className="remake-column-primary" disabled={breakdownStatus === "running"} onClick={beginBreakdown}>
+              {breakdownStatus === "running" && <LoaderCircle className="spin" />}
+              {breakdownStatus === "running" ? "视频拆解中" : "开始视频拆解"}
+              {breakdownStatus !== "running" && <ArrowRight />}
+            </button>
+          </article>
+          {breakdownReady && <>
+            <button type="button" className="remake-column-card remake-column-result" onClick={() => setBreakdownOpen(true)}>
+              <h2>视频拆解与复刻框架</h2>
+              <div className="remake-column-preview"><ReactMarkdown remarkPlugins={[remarkGfm]}>{breakdownPreview}</ReactMarkdown></div>
+              <span>点击查看完整内容 <Maximize2 /></span>
+            </button>
+            {isElementColumns ? <article className="remake-column-card remake-column-gallery">
+              <div className="remake-column-gallery-title"><div><h2>原视频逐秒分镜</h2><p>每 15 秒生成一张总览图，点击查看大图。</p></div><span>3 张 · 42 帧</span></div>
+              <BoardGallery originals onOpen={onOpen} />
+            </article> : <button className="remake-column-board" onClick={() => onOpen(columnsDemo.referenceImage, "原视频结构分镜") }>
+              <img src={columnsDemo.referenceImage} alt="原视频结构分镜" />
+              <span>原视频结构分镜 · 42 镜头</span>
+            </button>}
+            <button className="remake-column-primary remake-column-next" disabled={replacementLoading} onClick={requestReplacementAssets}>
+              下一步：替换素材 <ArrowRight />
+            </button>
+          </>}
+        </section>
+
+        <section className={`remake-flow-column${replacementLocked ? " locked" : ""}`} aria-disabled={replacementLocked} inert={replacementLocked || undefined}>
+          <header><span>STEP 02</span><i>2</i><h1>{isElementColumns ? "替换配置" : "仿写配置"}</h1><p>编辑素材与{workflowName}需求</p></header>
+          <article className="remake-column-card">
+            <h2>替换素材</h2>
+            <div className="remake-column-assets">
+              {columnsDemo.replacementResources.map((resource) => {
+                const asset = findBoundReplacementAsset(project.assets, resource.id);
+                return <div key={resource.id}><span>{asset?.preview ? <img src={asset.preview} alt="" /> : <ImageIcon />}</span><p><b>{resource.title}</b><small>{asset?.name || resource.description}</small></p><label><input type="file" accept={GENERAL_ASSET_ACCEPT} onChange={(event) => uploadResource(event, resource)} /><Upload />上传</label></div>;
+              })}
+            </div>
+            <button className="remake-column-add" onClick={() => notify("可继续添加其他参考素材")}><Plus />新增其他素材</button>
+          </article>
+          <article className="remake-column-card remake-column-request">
+            <h2>{workflowName}需求</h2>
+            <MentionEditor value={project.request || columnsDemo.request} assets={project.assets.length ? project.assets : columnsDemo.assets} maxLength={isRewriteColumns ? 1000 : 500} onChange={(request) => setProject((value) => ({ ...value, request }))} placeholder={`描述${workflowName}需求`} />
+            <small>已上传 {readyCount} 项素材</small>
+          </article>
+          <button className="remake-column-primary" disabled={storyboardLoading} onClick={requestStoryboardGeneration}>
+            {storyboardActionLabel}
+            <ArrowRight />
+          </button>
+          {replacementLocked && <div className="remake-column-lock">{replacementLoading ? <LoaderCircle className="spin" /> : <Lock />}<b>{replacementLoading ? "正在加载可替换素材..." : "完成视频拆解后开放"}</b></div>}
+        </section>
+
+        <section className={`remake-flow-column${storyboardLocked ? " locked" : ""}`} aria-disabled={storyboardLocked} inert={storyboardLocked || undefined}>
+          <header><span>STEP 03</span><i>3</i><h1>{isElementColumns ? "替换结果" : "仿写结果"}</h1><p>查看{isElementColumns ? "替换" : "仿写"}故事面板并提取片段</p></header>
+          {isElementColumns && <article className="remake-column-card remake-column-gallery">
+            <div className="remake-column-gallery-title"><div><h2>替换后逐秒分镜</h2><p>对应三个时间段的替换结果，点击查看大图。</p></div><span>3 张 · 42 帧</span></div>
+            <BoardGallery onOpen={onOpen} />
+          </article>}
+          <button
+            type="button"
+            className={isElementColumns ? "remake-column-card remake-column-result" : `remake-column-card remake-column-storyboard${isRewriteColumns ? " compact" : ""}`}
+            onClick={() => setStoryboardOpen(true)}
+          >
+            <div className="remake-column-card-title"><h2>{workflowName}故事面板 · 完成版</h2></div>
+            <AssetMarkdown className="remake-column-preview" value={columnsDemo.styleGuide} assets={project.assets.length ? project.assets : columnsDemo.assets} />
+            <span className="remake-column-read-more">点击查看完整内容 <Maximize2 /></span>
+          </button>
+          <p className="remake-column-note">从完整故事面板中提取可独立生成的视频片段。</p>
+          <button className="remake-column-primary" disabled={segmentExtractionLoading} onClick={extractSegments}>
+            {segmentExtractionLoading && <LoaderCircle className="spin" />}
+            {segmentExtractionLoading ? "正在提取片段..." : "提取片段"}
+            {!segmentExtractionLoading && <ArrowRight />}
+          </button>
+          {extractedSegments.length > 0 && <div className="remake-column-extracted-segments" aria-label="片段提取结果">
+            <div className="remake-column-extracted-header">
+              <h2>片段提取结果</h2>
+              <div className="remake-column-extracted-actions">
+                {isRewriteColumns && <button type="button" disabled={pendingRedrawSegmentIds.length === 0} onClick={() => generateRedraws(pendingRedrawSegmentIds)}>
+                  一键生成逐秒分镜图
+                </button>}
+                <button type="button" onClick={toggleAllExtractedSegments}>
+                  {selectedExtractedSegments.size === (isRewriteColumns ? redrawReadySegmentIds.length : extractedSegments.length) && selectedExtractedSegments.size > 0 ? "取消全选" : "全选"}
+                </button>
+              </div>
+            </div>
+            {extractedSegments.map((segment, index) => <article
+              key={segment.id}
+              className={isRewriteColumns
+                ? `redraw-layout${selectedExtractedSegments.has(segment.id) ? " selected" : ""}`
+                : selectedExtractedSegments.has(segment.id) ? "selected" : ""}
+              role="button"
+              tabIndex={0}
+              aria-label={`查看${segment.title}提取结果`}
+              onClick={() => setExtractedSegmentOpen(segment)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  setExtractedSegmentOpen(segment);
+                }
+              }}
+            >
+              <b>片段 {String(segment.number || index + 1).padStart(2, "0")}｜{segment.duration.replace("s", "秒")}｜{segment.summary.replace(/。$/, "")}</b>
+              <span>{segment.time} · {segment.shots}</span>
+              {isRewriteColumns && <div className="remake-column-redraw">
+                <button
+                  type="button"
+                  className="remake-column-redraw-preview"
+                  aria-label={segment.redrawStatus === "done" ? `查看片段${segment.number}逐秒分镜快照` : `片段${segment.number}逐秒分镜待生成`}
+                  disabled={segment.redrawStatus !== "done"}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onOpen(segment.redrawPath, `片段${segment.number}逐秒分镜快照`);
+                  }}
+                >
+                  {segment.redrawStatus === "done" ? <img src={segment.redrawPath} alt={`片段${segment.number}逐秒重绘分镜`} /> : segment.redrawStatus === "running" ? <LoaderCircle className="spin" /> : <ImageIcon />}
+                </button>
+                <button
+                  type="button"
+                  className="remake-column-redraw-generate"
+                  aria-label={segment.redrawStatus === "done" ? "重新生成逐秒分镜" : "生成逐秒分镜"}
+                  disabled={segment.redrawStatus === "running"}
+                  onClick={(event) => { event.stopPropagation(); generateRedraws([segment.id]); }}
+                >
+                  {segment.redrawStatus === "running" ? "生成中" : segment.redrawStatus === "done" ? "重新生成" : "生成分镜"}
+                </button>
+              </div>}
+              <button
+                type="button"
+                className={selectedExtractedSegments.has(segment.id) ? "selected" : ""}
+                aria-pressed={selectedExtractedSegments.has(segment.id)}
+                onClick={(event) => { event.stopPropagation(); toggleExtractedSegment(segment.id); }}
+              >
+                {selectedExtractedSegments.has(segment.id) ? "已选择" : "选择"}
+              </button>
+            </article>)}
+            <button className="remake-column-primary remake-column-next" disabled={selectedExtractedSegments.size === 0 || !selectedRedrawsReady} onClick={batchGenerateSegments}>
+              批量生成视频
+              <ArrowRight />
+            </button>
+          </div>}
+          {storyboardLocked && <div className="remake-column-lock">{storyboardLoading ? <LoaderCircle className="spin" /> : <Lock />}<b>{storyboardLoading ? storyboardLoadingLabel : "完成素材配置后开放"}</b></div>}
+        </section>
+
+        <section className="remake-flow-column remake-results-column">
+          <header><span>STEP 04</span><i>4</i><h1>生成结果</h1><p>查看全部生成结果</p></header>
+          {unifiedResults.length === 0 && <div className="remake-column-empty">暂无生成结果记录</div>}
+          {unifiedResults.length > 0 && <div className="remake-column-results">
+            {unifiedResults.map(({ kind, record }) => {
+              const segment = record.snapshot;
+              if (!segment) return null;
+              if (kind === "image") return <article className="remake-column-video remake-column-image" key={`image-${record.id}`}>
+                <button className="remake-column-image-preview" type="button" onClick={() => onOpen(segment.redrawPath, `片段${segment.number}逐秒分镜快照`)}>
+                  <img src={segment.redrawPath} alt={`片段${segment.number}逐秒分镜快照`} />
+                </button>
+                <h2>片段 {String(segment.number).padStart(2, "0")} · {segment.summary.replace(/。$/, "")}</h2>
+                <div className="remake-column-video-meta">
+                  <span>生成于 {formatGenerationTimestamp(record.generatedAt)}</span>
+                  <span className="remake-column-video-parameters"><span><Clock3 />{segment.duration.toUpperCase()}</span></span>
+                </div>
+                <button type="button" onClick={() => onOpen(segment.redrawPath, `片段${segment.number}逐秒分镜快照`)}>查看分镜快照</button>
+              </article>;
+              const running = record.status === "running";
+              const done = record.status === "done";
+              const segmentIndex = columnsDemo.segments.findIndex((item) => item.id === record.segmentId);
+              return <article className="remake-column-video" key={`video-${record.id}`}>
+                <button className="remake-column-video-preview" disabled={running} aria-label={`预览${segment.title}`} onClick={() => done && setVideoPreview(segment)}>
+                  {done ? <><video src={segment.video} muted /><span className="remake-column-video-play"><Play fill="currentColor" /></span></> : <><LoaderCircle className="spin" /><b>视频生成中...</b></>}
+                </button>
+                <button type="button" className="remake-column-video-title" onClick={() => setGenerationSnapshotOpen(record)}>
+                  片段{["一", "二", "三"][segmentIndex]} · {segment.summary.replace(/。$/, "")}
+                </button>
+                <div className="remake-column-video-meta">{running ? <span>生成中...</span> : <>
+                  <span>生成于 {formatGenerationTimestamp(record.generatedAt)}</span>
+                  <span className="remake-column-video-parameters">
+                    <span><Clock3 />{segment.duration.toUpperCase()}</span>
+                    <span><RectangleVertical />9:16</span>
+                    <span><ScanLine />{project.quality}</span>
+                  </span>
+                </>}</div>
+                <button type="button" className="remake-column-snapshot-button" onClick={() => setGenerationSnapshotOpen(record)}>
+                  查看脚本快照
+                </button>
+              </article>;
+            })}
+          </div>}
+        </section>
+      </div>
+      <VideoPreviewModal
+        open={Boolean(videoPreview)}
+        onClose={() => setVideoPreview(null)}
+        src={videoPreview?.video}
+        title={videoPreview?.title || "片段视频"}
+      />
+      {breakdownOpen && <div className="remake-modal" role="presentation" onMouseDown={(event) => { if (isBackdropSelfClick(event.target, event.currentTarget)) setBreakdownOpen(false); }}>
+        <article className="remake-markdown-modal" role="dialog" aria-modal="true" aria-label="视频拆解与复刻框架">
+          <header><h2>视频拆解与复刻框架</h2></header>
+          <div className="remake-markdown-body"><ReactMarkdown remarkPlugins={[remarkGfm]}>{project.documents.breakdown || breakdownText}</ReactMarkdown></div>
+          <footer className="remake-modal-footer"><button type="button" className="remake-modal-close" onClick={() => setBreakdownOpen(false)}>关闭</button></footer>
+        </article>
+      </div>}
+      {replacementConfirmOpen && <div className="remake-modal" role="presentation" onMouseDown={(event) => { if (isBackdropSelfClick(event.target, event.currentTarget)) setReplacementConfirmOpen(false); }}>
+        <article className="remake-confirm-modal" role="dialog" aria-modal="true" aria-label="是否重新加载可替换素材">
+          <header><h2>是否重新加载可替换素材</h2><p>重新加载将清空当前素材配置和{workflowName}需求，此操作不可撤销。</p></header>
+          <footer className="remake-modal-footer">
+            <button type="button" className="remake-modal-confirm secondary" onClick={() => setReplacementConfirmOpen(false)}>取消</button>
+            <button type="button" className="remake-modal-confirm" onClick={confirmReplacementReload}>确认重新加载</button>
+          </footer>
+        </article>
+      </div>}
+      {storyboardOpen && <div className="remake-modal" role="presentation" onMouseDown={(event) => { if (isBackdropSelfClick(event.target, event.currentTarget)) setStoryboardOpen(false); }}>
+        <article className="remake-markdown-modal" role="dialog" aria-modal="true" aria-label={`${workflowName}故事面板完整内容`}>
+          <header><h2>{workflowName}故事面板 · 完成版</h2></header>
+          <div className="remake-markdown-body"><AssetMarkdown value={project.documents.storyboard || columnsDemo.storyboard} assets={project.assets.length ? project.assets : columnsDemo.assets} /></div>
+          <footer className="remake-modal-footer"><button type="button" className="remake-modal-close" onClick={() => setStoryboardOpen(false)}>关闭</button></footer>
+        </article>
+      </div>}
+      {storyboardConfirmOpen && <div className="remake-modal" role="presentation" onMouseDown={(event) => { if (isBackdropSelfClick(event.target, event.currentTarget)) setStoryboardConfirmOpen(false); }}>
+        <article className="remake-confirm-modal" role="dialog" aria-modal="true" aria-label={`是否重新生成${workflowName}故事面板`}>
+          <header><h2>是否重新生成{workflowName}故事面板</h2><p>重新生成将替换当前故事面板内容。</p></header>
+          <footer className="remake-modal-footer">
+            <button type="button" className="remake-modal-confirm secondary" onClick={() => setStoryboardConfirmOpen(false)}>取消</button>
+            <button type="button" className="remake-modal-confirm" onClick={confirmStoryboardRegeneration}>确认重新生成</button>
+          </footer>
+        </article>
+      </div>}
+      {redrawRequiredOpen && <div className="remake-modal" role="presentation" onMouseDown={(event) => { if (isBackdropSelfClick(event.target, event.currentTarget)) setRedrawRequiredOpen(false); }}>
+        <article className="remake-confirm-modal" role="dialog" aria-modal="true" aria-label="请先生成分镜参考图">
+          <header><h2>请先生成分镜参考图</h2><p>当前片段生成逐秒分镜图后，才可选择生成视频。</p></header>
+          <footer className="remake-modal-footer">
+            <button type="button" className="remake-modal-confirm" onClick={() => setRedrawRequiredOpen(false)}>知道了</button>
+          </footer>
+        </article>
+      </div>}
+      {extractedSegmentOpen && <div className="remake-modal" role="presentation" onMouseDown={(event) => { if (isBackdropSelfClick(event.target, event.currentTarget)) setExtractedSegmentOpen(null); }}>
+        <article className="remake-markdown-modal" role="dialog" aria-modal="true" aria-label={`${extractedSegmentOpen.title}提取结果`}>
+          <header className="remake-segment-modal-header">
+            <span>{extractedSegmentOpen.duration.replace("s", "秒")}</span>
+            <h2>{extractedSegmentOpen.title}</h2>
+            <p>{extractedSegmentOpen.time} · {extractedSegmentOpen.shots}</p>
+          </header>
+          <div className="remake-markdown-body"><AssetMarkdown value={extractedSegmentOpen.content} assets={project.assets.length ? project.assets : columnsDemo.assets} /></div>
+          <footer className="remake-modal-footer"><button type="button" className="remake-modal-close" onClick={() => setExtractedSegmentOpen(null)}>关闭</button></footer>
+        </article>
+      </div>}
+      {generationSnapshotOpen && <div className="remake-modal" role="presentation" onMouseDown={(event) => { if (isBackdropSelfClick(event.target, event.currentTarget)) setGenerationSnapshotOpen(null); }}>
+        <article className="remake-markdown-modal" role="dialog" aria-modal="true" aria-label="片段生成快照">
+          <header className="remake-segment-modal-header">
+            <span>{generationSnapshotOpen.snapshot.duration.replace("s", "秒")}</span>
+            <h2>{generationSnapshotOpen.snapshot.title}</h2>
+            <p>{generationSnapshotOpen.snapshot.time} · {generationSnapshotOpen.snapshot.shots} · 生成于 {generationSnapshotOpen.generatedAt ? formatGenerationTimestamp(generationSnapshotOpen.generatedAt) : "生成中"}</p>
+          </header>
+          <div className="remake-markdown-body"><AssetMarkdown value={generationSnapshotOpen.snapshot.content} assets={generationSnapshotOpen.assets} /></div>
+          <footer className="remake-modal-footer"><button type="button" className="remake-modal-close" onClick={() => setGenerationSnapshotOpen(null)}>关闭</button></footer>
+        </article>
+      </div>}
+    </div>
+  );
+}
+
 export default function ViralRemake() {
   const [mode, setMode] = useState(null);
   const [project, setProject] = useState(() =>
@@ -1299,8 +1907,14 @@ export default function ViralRemake() {
   const [viewer, setViewer] = useState(null);
   const [segmentDetail, setSegmentDetail] = useState(null);
   const [regenerating, setRegenerating] = useState(false);
+  const [structureColumnsSessionKey, setStructureColumnsSessionKey] = useState(0);
+  const [rewriteColumnsSessionKey, setRewriteColumnsSessionKey] = useState(0);
+  const [elementColumnsSessionKey, setElementColumnsSessionKey] = useState(0);
   const elementDrafts = useRemakeDrafts(ELEMENT_DRAFTS_KEY, "element");
+  const elementColumnsDrafts = useRemakeDrafts(ELEMENT_COLUMNS_DRAFTS_KEY, "element-columns");
   const structureDrafts = useRemakeDrafts(STRUCTURE_DRAFTS_KEY, "structure");
+  const structureColumnsDrafts = useRemakeDrafts(STRUCTURE_COLUMNS_DRAFTS_KEY, "structure-columns");
+  const rewriteColumnsDrafts = useRemakeDrafts(REWRITE_COLUMNS_DRAFTS_KEY, "rewrite-columns");
   const timer = useRef(null);
   const viewerCloseRef = useRef(null);
   const viewerReturnFocusRef = useRef(null);
@@ -1349,7 +1963,10 @@ export default function ViralRemake() {
   const save = () => {
     persistProject(localStorage, project, getStorageKey(mode));
     if (mode === "element") elementDrafts.save(JSON.parse(serializeProject(project)));
+    if (mode === "element-columns") elementColumnsDrafts.save(JSON.parse(serializeProject(project)));
     if (mode === "structure") structureDrafts.save(JSON.parse(serializeProject(project)));
+    if (mode === "structure-columns") structureColumnsDrafts.save(JSON.parse(serializeProject(project)));
+    if (mode === "rewrite-columns") rewriteColumnsDrafts.save(JSON.parse(serializeProject(project)));
     notify("草稿已保存到当前浏览器");
   };
   const next = () => {
@@ -1393,20 +2010,39 @@ export default function ViralRemake() {
       videoName: "需要复刻的模板视频.mp4",
       request: "",
       model: "seedance 2.0",
-      aspectRatio: mode === "structure" ? structureDemo.aspectRatio : value.aspectRatio,
+      aspectRatio: mode === "structure" || mode === "structure-columns" ? structureDemo.aspectRatio : value.aspectRatio,
       assets: [],
       assetCounters: { image: mode === "structure" ? 4 : 3, audio: 0, video: 0 },
       documents: {
         ...value.documents,
         breakdown: breakdownText,
-        storyboard: mode === "structure" ? structureDemo.storyboard : storyboardText,
+        storyboard: mode === "structure" || mode === "structure-columns" ? structureDemo.storyboard : storyboardText,
         ...Object.fromEntries(
-          (mode === "structure" ? structureDemo.segments : segmentDocuments)
+          (mode === "structure" || mode === "structure-columns" ? structureDemo.segments : segmentDocuments)
             .map((item) => [item.id, item.content]),
         ),
       },
     }));
     notify("Demo 素材已加载");
+  };
+  const loadColumnsDemo = () => {
+    const columnsDemo = mode === "element-columns" ? elementColumnsDemo : mode === "rewrite-columns" ? rewriteColumnsDemo : structureDemo;
+    setProject((value) => ({
+      ...value,
+      videoName: mode === "rewrite-columns" ? rewriteDemo.videoName : "需要复刻的模板视频.mp4",
+      model: "seedance 2.5",
+      aspectRatio: columnsDemo.aspectRatio,
+      assets: columnsDemo.assets,
+      assetCounters: { image: columnsDemo.assets.length, audio: 0, video: 0 },
+      request: columnsDemo.request,
+      documents: {
+        ...value.documents,
+        breakdown: columnsDemo.breakdown || breakdownText,
+        storyboard: columnsDemo.storyboard,
+        ...Object.fromEntries(columnsDemo.segments.map((item) => [item.id, item.content])),
+      },
+    }));
+    notify("四列 Demo 素材已加载");
   };
   const regenerate = () => {
     if (regenerating) return;
@@ -1427,10 +2063,42 @@ export default function ViralRemake() {
       {!mode ? (
         <ModeSelection onSelect={(nextMode) => {
           setMode(nextMode);
-          setProject(createInitialProject(localStorage.getItem(getStorageKey(nextMode)) || {}));
+          const saved = localStorage.getItem(getStorageKey(nextMode));
+          setProject(createInitialProject(saved || {}));
         }} notify={notify} />
-      ) : mode === "rewrite" ? (
-        <OriginalRewrite onBack={() => setMode(null)} notify={notify} />
+      ) : mode === "element-columns" || mode === "structure-columns" || mode === "rewrite-columns" ? (
+        <div className="remake-draft-layout remake-columns-draft-layout">
+          <RemakeDraftSidebar
+            storageKey={mode === "element-columns" ? ELEMENT_COLUMNS_DRAFTS_KEY : mode === "rewrite-columns" ? REWRITE_COLUMNS_DRAFTS_KEY : STRUCTURE_COLUMNS_DRAFTS_KEY}
+            title={mode === "element-columns" ? "元素替换四屏任务记录" : mode === "rewrite-columns" ? "原片仿写四屏任务记录" : "结构仿写任务记录"}
+            manager={mode === "element-columns" ? elementColumnsDrafts : mode === "rewrite-columns" ? rewriteColumnsDrafts : structureColumnsDrafts}
+            onNew={() => {
+              const manager = mode === "element-columns" ? elementColumnsDrafts : mode === "rewrite-columns" ? rewriteColumnsDrafts : structureColumnsDrafts;
+              manager.setActiveId(null);
+              setProject(createInitialProject());
+              if (mode === "element-columns") setElementColumnsSessionKey((value) => value + 1);
+              else if (mode === "rewrite-columns") setRewriteColumnsSessionKey((value) => value + 1);
+              else setStructureColumnsSessionKey((value) => value + 1);
+            }}
+            onSelect={(draft) => {
+              setProject(createInitialProject(draft.project));
+              if (mode === "element-columns") setElementColumnsSessionKey((value) => value + 1);
+              else if (mode === "rewrite-columns") setRewriteColumnsSessionKey((value) => value + 1);
+              else setStructureColumnsSessionKey((value) => value + 1);
+            }}
+          />
+          <StructureColumnsWorkspace
+            key={mode === "element-columns" ? elementColumnsSessionKey : mode === "rewrite-columns" ? rewriteColumnsSessionKey : structureColumnsSessionKey}
+            mode={mode}
+            project={project}
+            setProject={setProject}
+            onBack={() => setMode(null)}
+            onSave={save}
+            onDemo={loadColumnsDemo}
+            onOpen={openViewer}
+            notify={notify}
+          />
+        </div>
       ) : (
         <div className="remake-draft-layout">
           {mode === "element" && <RemakeDraftSidebar storageKey={ELEMENT_DRAFTS_KEY} title="元素替换任务记录" manager={elementDrafts} onNew={() => { elementDrafts.setActiveId(null); setProject(createInitialProject()); }} onSelect={(draft) => setProject(createInitialProject(draft.project))} />}

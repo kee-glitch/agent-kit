@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
+import * as remakeState from "./viral-remake-state.js";
 import {
   BOUND_ASSET_ACCEPT,
   GENERAL_ASSET_ACCEPT,
@@ -42,6 +43,7 @@ import {
   setBoundReplacementAsset,
   updateDocument,
   getStorageKey,
+  formatGenerationTimestamp,
 } from "./viral-remake-state.js";
 import {
   breakdownText,
@@ -73,12 +75,10 @@ const videoPreviewModalSource = readFileSync(
   "utf8",
 );
 
-test("结构仿写作为独立模式开放并使用隔离草稿", () => {
+test("旧版结构仿写不再显示为独立入口", () => {
   const structureMode = modes.find((mode) => mode.id === "structure");
-  const rewriteMode = modes.find((mode) => mode.id === "rewrite");
 
-  assert.equal(structureMode?.active, true);
-  assert.equal(rewriteMode?.active, true);
+  assert.equal(structureMode, undefined);
   assert.equal(getStorageKey("element"), "shulan.viral-remake.project.v1");
   assert.equal(
     getStorageKey("structure"),
@@ -86,6 +86,531 @@ test("结构仿写作为独立模式开放并使用隔离草稿", () => {
   );
   assert.equal(structureDemo.aspectRatio, "1:1");
   assert.equal(structureDemo.referenceImage.endsWith("/structure-storyboard.jpg"), true);
+});
+
+test("四列工作台替换旧版入口并沿用结构仿写名称", () => {
+  const columnMode = modes.find((mode) => mode.id === "structure-columns");
+
+  assert.deepEqual(
+    {
+      title: columnMode?.title,
+      active: columnMode?.active,
+    },
+    { title: "结构仿写", active: true },
+  );
+  assert.equal(modes.length, 3);
+  assert.equal(
+    getStorageKey("structure-columns"),
+    "shulan.viral-remake.structure-columns.project.v1",
+  );
+  assert.notEqual(getStorageKey("structure-columns"), getStorageKey("structure"));
+  assert.match(viralRemakeSource, /const workflowName = isElementColumns \? "元素替换" : isRewriteColumns \? "原片仿写" : "结构仿写"/);
+  assert.match(viralRemakeSource, /爆款复刻 \/ \{workflowName\}/);
+  assert.doesNotMatch(viralRemakeSource, /结构仿写（四列）/);
+  assert.match(viralRemakeSource, /title="结构仿写任务记录"/);
+});
+
+test("四屏元素替换接替旧入口并继承原入口文案", () => {
+  const elementModes = modes.filter((mode) => mode.title === "元素替换");
+  const columnsMode = modes.find((mode) => mode.id === "element-columns");
+
+  assert.deepEqual(elementModes.map((mode) => mode.id), ["element-columns"]);
+  assert.equal(columnsMode?.subtitle, "最贴近原片动作镜头");
+  assert.equal(
+    columnsMode?.description,
+    "保留原视频的镜头、运镜、动作、时长和口播节奏，只替换人物、产品或场景。",
+  );
+  assert.equal(columnsMode?.active, true);
+  assert.equal(
+    getStorageKey("element-columns"),
+    "shulan.viral-remake.element-columns.project.v1",
+  );
+  assert.notEqual(getStorageKey("element-columns"), getStorageKey("element"));
+  assert.match(viralRemakeSource, /mode === "element-columns"/);
+  assert.match(viralRemakeSource, /元素替换四屏工作区/);
+});
+
+test("元素替换四屏分别展示三张原视频和三张替换结果分镜", () => {
+  assert.equal(originalBoards.length, 3);
+  assert.equal(replacedBoards.length, 3);
+  assert.match(viralRemakeSource, /<BoardGallery originals onOpen=\{onOpen\} \/>/);
+  assert.match(viralRemakeSource, /<BoardGallery onOpen=\{onOpen\} \/>/);
+  assert.match(viralRemakeSource, /原视频逐秒分镜/);
+  assert.match(viralRemakeSource, /替换后逐秒分镜/);
+  assert.match(viralRemakeStyles, /\.remake-column-gallery[\s\S]*?\.remake-board-grid/);
+});
+
+test("元素替换逐秒分镜按生成批次追加到生成结果快照", () => {
+  assert.match(
+    viralRemakeSource,
+    /const redrawResults = isRewriteColumns \|\| isElementColumns \? project\.redrawRecords : \[\]/,
+  );
+  assert.match(viralRemakeSource, /isElementColumns \? columnsDemo\.segments\.map\(\(segment, index\) => \(\{/);
+  assert.match(viralRemakeSource, /redrawPath: replacedBoards\[index\]/);
+  assert.match(viralRemakeSource, /redrawRecords: \[\.\.\.newRedrawRecords, \.\.\.next\.redrawRecords\]/);
+  assert.match(viralRemakeSource, /kind: "image"/);
+  assert.match(viralRemakeSource, />查看分镜快照<\/button>/);
+});
+
+test("元素替换四屏故事面板卡片只预览风格统一约束", () => {
+  assert.match(
+    viralRemakeSource,
+    /styleGuide: storyboardText\.split\("### 2\. 分镜卡片"\)\[0\]\.trim\(\)/,
+  );
+  assert.match(viralRemakeSource, /value=\{columnsDemo\.styleGuide\}/);
+  assert.match(viralRemakeSource, /value=\{project\.documents\.storyboard \|\| columnsDemo\.storyboard\}/);
+});
+
+test("四屏故事面板整张卡片可点击或键盘预览", () => {
+  assert.match(
+    viralRemakeSource,
+    /<button\s+type="button"\s+className=\{isElementColumns \? "remake-column-card remake-column-result"/,
+  );
+  assert.match(viralRemakeSource, /onClick=\{\(\) => setStoryboardOpen\(true\)\}/);
+});
+
+test("四屏故事面板与第一屏拆解结果复用统一卡片样式", () => {
+  const sharedResultCards = viralRemakeSource.match(/remake-column-card remake-column-result/g) ?? [];
+
+  assert.equal(sharedResultCards.length, 2);
+  assert.doesNotMatch(viralRemakeStyles, /\.remake-column-storyboard:hover/);
+  assert.doesNotMatch(viralRemakeStyles, /\.remake-column-storyboard:focus-visible/);
+});
+
+test("四屏工作台接替旧版原片仿写且首页入口不显示编号", () => {
+  const legacyRewrite = modes.find((mode) => mode.id === "rewrite");
+  const columnsRewrite = modes.find((mode) => mode.id === "rewrite-columns");
+
+  assert.deepEqual(
+    {
+      title: columnsRewrite?.title,
+      subtitle: columnsRewrite?.subtitle,
+      description: columnsRewrite?.description,
+      active: columnsRewrite?.active,
+    },
+    {
+      title: "原片仿写",
+      subtitle: "中等自由度",
+      description: "学习原片镜头、动作与叙事节奏，对整体画面进行重新绘制。",
+      active: true,
+    },
+  );
+  assert.equal(legacyRewrite, undefined);
+  assert.equal(modes.length, 3);
+  assert.equal(modes.some((mode) => "index" in mode), false);
+  assert.doesNotMatch(viralRemakeSource, /\{mode\.index\}/);
+  assert.doesNotMatch(viralRemakeSource, /<OriginalRewrite/);
+  assert.match(viralRemakeStyles, /\.remake-mode-grid\s*\{[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/);
+  assert.equal(
+    getStorageKey("rewrite-columns"),
+    "shulan.viral-remake.rewrite-columns.project.v1",
+  );
+  assert.notEqual(getStorageKey("rewrite-columns"), getStorageKey("rewrite"));
+  assert.match(viralRemakeSource, /mode === "structure-columns" \|\| mode === "rewrite-columns"/);
+  assert.match(viralRemakeSource, /mode=\{mode\}/);
+  assert.match(viralRemakeSource, /原片仿写四屏工作区/);
+  assert.match(viralRemakeSource, /maxLength=\{isRewriteColumns \? 1000 : 500\}/);
+  assert.match(viralRemakeSource, /rewriteDemo\.rewriteDocument\.split\("### 2\. 分镜卡片"\)\[0\]\.trim\(\)/);
+  assert.match(viralRemakeSource, /remake-column-storyboard\$\{isRewriteColumns \? " compact" : ""\}/);
+  assert.match(viralRemakeStyles, /\.remake-column-storyboard\.compact\s*\{[^}]*max-height:\s*400px/);
+  assert.match(viralRemakeStyles, /\.remake-column-storyboard\.compact > \.remake-column-preview\s*\{[^}]*max-height:\s*260px/);
+});
+
+test("原片仿写四屏在视频生成前展示逐秒重绘结果", () => {
+  assert.match(viralRemakeSource, /const generateRedraws = \(ids\) =>/);
+  assert.match(viralRemakeSource, /一键生成逐秒分镜图/);
+  assert.doesNotMatch(viralRemakeSource, /批量生成逐秒分镜/);
+  assert.match(viralRemakeSource, /segment\.redrawStatus === "done" \? <img src=\{segment\.redrawPath\}/);
+  assert.match(viralRemakeSource, /生成逐秒分镜/);
+  assert.match(viralRemakeSource, /selectedRedrawsReady/);
+  assert.match(viralRemakeSource, /disabled=\{selectedExtractedSegments\.size === 0 \|\| !selectedRedrawsReady\}/);
+});
+
+test("一键生成逐秒分镜只提交尚未生成且未在生成中的片段", () => {
+  const segments = [
+    { id: "idle" },
+    { id: "running", redrawStatus: "running" },
+    { id: "done", redrawStatus: "done" },
+  ];
+
+  assert.deepEqual(remakeState.getPendingRedrawSegmentIds(segments), ["idle"]);
+});
+
+test("一键生成逐秒分镜位于片段标题栏全选按钮左侧", () => {
+  const headerStart = viralRemakeSource.indexOf('className="remake-column-extracted-header"');
+  const headerEnd = viralRemakeSource.indexOf("</div>", headerStart);
+  const headerSource = viralRemakeSource.slice(headerStart, headerEnd);
+
+  assert.ok(headerStart >= 0);
+  assert.ok(headerSource.indexOf("一键生成逐秒分镜图") >= 0);
+  assert.ok(headerSource.indexOf("一键生成逐秒分镜图") < headerSource.indexOf("全选"));
+});
+
+test("未生成分镜的片段不能选中生成视频", () => {
+  const segments = [
+    { id: "idle" },
+    { id: "ready", redrawStatus: "done" },
+  ];
+  const current = new Set(["ready"]);
+
+  const blocked = remakeState.toggleRedrawReadySelection(current, segments, "idle");
+  assert.equal(blocked.blocked, true);
+  assert.deepEqual([...blocked.selectedIds], ["ready"]);
+
+  const deselected = remakeState.toggleRedrawReadySelection(current, segments, "ready");
+  assert.equal(deselected.blocked, false);
+  assert.deepEqual([...deselected.selectedIds], []);
+  assert.deepEqual(remakeState.getRedrawReadySegmentIds(segments), ["ready"]);
+});
+
+test("选择未生成分镜的片段时展示统一遮罩提示", () => {
+  assert.match(viralRemakeSource, /setRedrawRequiredOpen\(true\)/);
+  assert.match(viralRemakeSource, /aria-label="请先生成分镜参考图"/);
+  assert.match(viralRemakeSource, />请先生成分镜参考图<\/h2>/);
+});
+
+test("原片仿写四屏在生成结果列同步展示已完成的逐秒分镜快照", () => {
+  assert.match(viralRemakeSource, /const redrawResults = isRewriteColumns \|\| isElementColumns \? project\.redrawRecords : \[\]/);
+  assert.match(viralRemakeSource, /setRedrawRecords\(\(current\) => \[\.\.\.newRecords, \.\.\.current\]\)/);
+  assert.match(viralRemakeSource, /const unifiedResults = \[/);
+  assert.match(viralRemakeSource, /kind: "image"/);
+  assert.match(viralRemakeSource, /kind: "video"/);
+  assert.match(viralRemakeSource, /className="remake-column-image-preview"/);
+  assert.match(viralRemakeSource, /onOpen\(segment\.redrawPath, `片段\$\{segment\.number\}逐秒分镜快照`\)/);
+  assert.match(viralRemakeSource, />查看分镜快照<\/button>/);
+  assert.match(viralRemakeSource, /unifiedResults\.length === 0/);
+});
+
+test("逐秒分镜快照记录按生成次数追加并随草稿恢复", () => {
+  const first = {
+    id: "redraw-1-segment-1",
+    segmentId: "segment-1",
+    generatedAt: "2026-10-04T08:00:00.000Z",
+    snapshot: { id: "segment-1", number: 1, redrawPath: "/redraw-1.jpg" },
+  };
+  const second = {
+    ...first,
+    id: "redraw-2-segment-1",
+    generatedAt: "2026-10-04T08:01:00.000Z",
+  };
+
+  const restored = createInitialProject(JSON.parse(serializeProject({
+    ...createInitialProject(),
+    redrawRecords: [first, second],
+  })));
+
+  assert.deepEqual(restored.redrawRecords.map((record) => record.id), [second.id, first.id]);
+  assert.equal(restored.redrawRecords[0].segmentId, restored.redrawRecords[1].segmentId);
+});
+
+test("逐秒分镜片段卡片使用缩略图信息和双按钮单行布局", () => {
+  assert.match(viralRemakeStyles, /\.remake-four-columns\s*\{[^}]*grid-template-columns:\s*repeat\(4,\s*minmax\(220px,\s*1fr\)\)/);
+  assert.match(viralRemakeSource, /`redraw-layout\$\{selectedExtractedSegments/);
+  assert.match(viralRemakeStyles, /\.remake-column-extracted-segments > article\.redraw-layout\s*\{[^}]*grid-template-columns:\s*48px\s+minmax\(0,\s*1fr\)\s+auto\s+auto/);
+  assert.match(viralRemakeStyles, /\.remake-column-redraw\s*\{[^}]*display:\s*contents/);
+  assert.match(viralRemakeStyles, /\.remake-column-redraw-generate\s*\{[^}]*grid-column:\s*3[^}]*grid-row:\s*1\s*\/\s*3/);
+});
+
+test("已生成逐秒分镜的缩略图可独立打开大图", () => {
+  assert.match(viralRemakeSource, /className="remake-column-redraw-preview"/);
+  assert.match(viralRemakeSource, /disabled=\{segment\.redrawStatus !== "done"\}/);
+  assert.match(viralRemakeSource, /event\.stopPropagation\(\);[\s\S]*?onOpen\(segment\.redrawPath, `片段\$\{segment\.number\}逐秒分镜快照`\)/);
+});
+
+test("四列工作流只在完成当前步骤后开放下一列且重复完成不会越级", () => {
+  assert.equal(typeof remakeState.completeWorkflowStep, "function");
+  const initial = createInitialProject({ videoName: "demo.mp4" });
+  const afterBreakdown = remakeState.completeWorkflowStep(initial, 1);
+
+  assert.deepEqual(
+    { step: afterBreakdown.step, maxStep: afterBreakdown.maxStep },
+    { step: 2, maxStep: 2 },
+  );
+  assert.deepEqual(
+    remakeState.completeWorkflowStep(afterBreakdown, 1),
+    afterBreakdown,
+  );
+  assert.deepEqual(
+    remakeState.completeWorkflowStep(afterBreakdown, 2),
+    { ...afterBreakdown, step: 3, maxStep: 3 },
+  );
+});
+
+test("四列视频拆解经历未开始、运行中和完成状态且不会自动开放下一列", () => {
+  assert.equal(typeof remakeState.getColumnsBreakdownStatus, "function");
+  assert.equal(typeof remakeState.startColumnsBreakdown, "function");
+  assert.equal(typeof remakeState.finishColumnsBreakdown, "function");
+  const empty = createInitialProject();
+  assert.equal(remakeState.getColumnsBreakdownStatus(empty), "idle");
+  assert.deepEqual(remakeState.startColumnsBreakdown(empty), empty);
+
+  const uploaded = createInitialProject({ videoName: "demo.mp4" });
+  const running = remakeState.startColumnsBreakdown(uploaded);
+  assert.equal(remakeState.getColumnsBreakdownStatus(running), "running");
+  assert.equal(running.maxStep, 1);
+
+  const done = remakeState.finishColumnsBreakdown(running);
+  assert.equal(remakeState.getColumnsBreakdownStatus(done), "done");
+  assert.equal(done.maxStep, 1);
+  assert.equal(remakeState.completeWorkflowStep(done, 1).maxStep, 2);
+});
+
+test("四列锁定提示紧接步骤标题顶部对齐", () => {
+  const lockRule = viralRemakeStyles.match(/\.remake-column-lock\s*\{([\s\S]*?)\}/)?.[1] ?? "";
+
+  assert.match(lockRule, /top:\s*calc\(var\(--space-8\) \+ 108px\)/);
+  assert.doesNotMatch(lockRule, /translateY\(-50%\)/);
+});
+
+test("四屏锁定列使用布尔 inert 属性而不触发 React 警告", () => {
+  assert.match(viralRemakeSource, /inert=\{replacementLocked \|\| undefined\}/);
+  assert.match(viralRemakeSource, /inert=\{storyboardLocked \|\| undefined\}/);
+  assert.doesNotMatch(viralRemakeSource, /inert=\{[^}]+\? "" : undefined\}/);
+});
+
+test("四列进入替换素材前在第二列显示加载状态", () => {
+  assert.match(viralRemakeSource, /const \[replacementLoading, setReplacementLoading\] = useState\(false\)/);
+  assert.match(viralRemakeSource, /正在加载可替换素材\.\.\./);
+  assert.match(viralRemakeSource, /replacementLoading \? <LoaderCircle className="spin" \/> : <Lock \/>/);
+  assert.match(viralRemakeSource, /disabled=\{replacementLoading\}/);
+});
+
+test("四列素材已开放时再次点击先确认再重新加载", () => {
+  assert.match(viralRemakeSource, /const \[replacementConfirmOpen, setReplacementConfirmOpen\] = useState\(false\)/);
+  assert.match(viralRemakeSource, /是否重新加载可替换素材/);
+  assert.match(viralRemakeSource, />取消<\/button>/);
+  assert.match(viralRemakeSource, />确认重新加载<\/button>/);
+  assert.match(viralRemakeSource, /project\.maxStep < 2 \|\| replacementLoading/);
+  assert.match(viralRemakeSource, /重新加载将清空当前素材配置和\{workflowName\}需求，此操作不可撤销。/);
+  assert.match(viralRemakeSource, /assets:\s*\[\],\s*request:\s*""/);
+  assert.doesNotMatch(viralRemakeSource, /现有内容不会被清空/);
+});
+
+test("四列故事面板首次生成和再次生成都显示加载状态", () => {
+  assert.match(viralRemakeSource, /const \[storyboardLoading, setStoryboardLoading\] = useState\(false\)/);
+  assert.match(viralRemakeSource, /下一步：生成结构仿写故事面板/);
+  assert.match(viralRemakeSource, /正在生成结构仿写故事面板\.\.\./);
+  assert.match(viralRemakeSource, /project\.maxStep < 3 \|\| storyboardLoading/);
+  assert.match(viralRemakeSource, /disabled=\{storyboardLoading\}/);
+});
+
+test("四列拆解与故事面板使用受控预览和完整内容弹窗", () => {
+  assert.match(viralRemakeSource, /const breakdownPreview =/);
+  assert.match(viralRemakeSource, /<ReactMarkdown remarkPlugins=\{\[remarkGfm\]\}>\{breakdownPreview\}<\/ReactMarkdown>/);
+  assert.doesNotMatch(viralRemakeSource, /className="remake-column-lines"/);
+  assert.match(viralRemakeSource, /value=\{columnsDemo\.styleGuide\}/);
+  assert.doesNotMatch(viralRemakeSource, /完整时长 41 秒 · 11 个镜头/);
+  assert.match(viralRemakeSource, /setStoryboardOpen\(true\)/);
+  assert.match(viralRemakeSource, /aria-label=\{`\$\{workflowName\}故事面板完整内容`\}/);
+});
+
+test("四列故事面板再次生成前显示确认弹窗", () => {
+  assert.match(viralRemakeSource, /const \[storyboardConfirmOpen, setStoryboardConfirmOpen\] = useState\(false\)/);
+  assert.match(viralRemakeSource, /是否重新生成\{workflowName\}故事面板/);
+  assert.match(viralRemakeSource, />确认重新生成<\/button>/);
+});
+
+test("四列第三屏承载仿写操作且第四屏汇总图片与视频结果", () => {
+  assert.match(viralRemakeSource, /<h1>\{isElementColumns \? "替换结果" : "仿写结果"\}<\/h1><p>查看\{isElementColumns \? "替换" : "仿写"\}故事面板并提取片段<\/p>/);
+  assert.match(viralRemakeSource, /<h1>生成结果<\/h1><p>查看全部生成结果<\/p>/);
+});
+
+test("四列第三屏先提取片段再开放片段视频", () => {
+  assert.match(viralRemakeSource, /const \[segmentExtractionLoading, setSegmentExtractionLoading\] = useState\(false\)/);
+  assert.match(viralRemakeSource, /const \[extractedSegments, setExtractedSegments\] = useState\(\[\]\)/);
+  assert.match(viralRemakeSource, /正在提取片段\.\.\./);
+  assert.match(viralRemakeSource, /segmentExtractionLoading \? "正在提取片段\.\.\." : "提取片段"/);
+  assert.equal(structureDemo.segments[0].heading, "## 片段一｜15秒｜反差钩子、生活痛点共情与软糖方案亮相");
+  assert.equal(structureDemo.segments[1].heading, "## 片段二｜15秒｜商品包装展示、标签信息拆解与选择理由建立");
+  assert.match(viralRemakeSource, /片段 \{String\(segment\.number \|\| index \+ 1\)\.padStart\(2, "0"\)\}｜\{segment\.duration\.replace\("s", "秒"\)\}｜/);
+  assert.match(viralRemakeSource, />\s*批量生成视频\s*<ArrowRight \/>\s*<\/button>/);
+  assert.match(viralRemakeSource, /aria-label=\{`查看\$\{segment\.title\}提取结果`\}/);
+  assert.doesNotMatch(viralRemakeSource, /生成片段视频（3）/);
+});
+
+test("四列片段支持全选批量生成且结果列展示生成状态", () => {
+  assert.match(viralRemakeSource, /const \[selectedExtractedSegments, setSelectedExtractedSegments\] = useState\(new Set\(\)\)/);
+  assert.match(viralRemakeSource, /全选/);
+  assert.match(viralRemakeSource, /取消全选/);
+  assert.match(viralRemakeSource, /selectedExtractedSegments\.has\(segment\.id\) \? "已选择" : "选择"/);
+  assert.match(viralRemakeSource, />\s*批量生成视频\s*<ArrowRight \/>\s*<\/button>/);
+  assert.match(viralRemakeSource, /<h1>生成结果<\/h1><p>查看全部生成结果<\/p>/);
+  assert.match(viralRemakeSource, /视频生成中\.\.\./);
+  assert.match(viralRemakeSource, /<LoaderCircle className="spin" \/>/);
+  assert.doesNotMatch(viralRemakeSource, />重新生成<\/button>/);
+});
+
+test("四列批量生成保留历史结果且结果列不显示完成项目", () => {
+  assert.match(viralRemakeSource, /const generationRecords = project\.generationRecords/);
+  assert.match(viralRemakeSource, /setGenerationRecords\(\(current\) => \[\.\.\.newRecords, \.\.\.current\]\)/);
+  assert.match(viralRemakeSource, /generationBatchCounter\.current \+= 1/);
+  assert.match(viralRemakeSource, /record\.batchId === batchId \? \{ \.\.\.record, status: "done", generatedAt \} : record/);
+  assert.match(viralRemakeSource, /unifiedResults\.map\(\(\{ kind, record \}\) =>/);
+  assert.doesNotMatch(viralRemakeSource, /四列结构仿写项目已完成/);
+});
+
+test("四列生成结果展示生成参数并可查看独立片段快照", () => {
+  assert.match(viralRemakeSource, /snapshot:\s*\{ \.\.\.segment \}/);
+  assert.match(viralRemakeSource, /generatedAt:\s*null/);
+  assert.match(viralRemakeSource, /const generatedAt = new Date\(\)\.toISOString\(\)/);
+  assert.match(viralRemakeSource, /生成于 \{formatGenerationTimestamp\(record\.generatedAt\)\}/);
+  assert.match(viralRemakeSource, /setGenerationSnapshotOpen\(record\)/);
+  assert.match(viralRemakeSource, /aria-label="片段生成快照"/);
+  assert.doesNotMatch(viralRemakeSource, /\{done \? "已完成" : "生成中"\}/);
+  assert.match(viralRemakeStyles, /\.remake-column-video-title[\s\S]*?text-overflow:\s*ellipsis/);
+  assert.match(viralRemakeStyles, /\.remake-column-video-title[\s\S]*?white-space:\s*nowrap/);
+});
+
+test("生成记录时间按今天昨天一周内和跨年日期显示", () => {
+  const now = new Date(2026, 9, 4, 16, 0);
+
+  assert.equal(formatGenerationTimestamp(new Date(2026, 9, 4, 14, 30), now), "14:30");
+  assert.equal(formatGenerationTimestamp(new Date(2026, 9, 3, 23, 59), now), "昨天");
+  assert.equal(formatGenerationTimestamp(new Date(2026, 8, 30, 12, 0), now), "周三");
+  assert.equal(formatGenerationTimestamp(new Date(2026, 5, 15, 12, 0), now), "6 月 15 日");
+  assert.equal(formatGenerationTimestamp(new Date(2025, 5, 15, 12, 0), now), "2025 年 6 月 15 日");
+});
+
+test("四列生成结果按时间时长比例清晰度排序并提供脚本快照按钮", () => {
+  assert.match(viralRemakeSource, /生成于 \{formatGenerationTimestamp\(record\.generatedAt\)\}[\s\S]*?\{segment\.duration\.toUpperCase\(\)\}[\s\S]*?9:16[\s\S]*?\{project\.quality\}/);
+  assert.match(viralRemakeSource, /className="remake-column-snapshot-button"[\s\S]*?查看脚本快照/);
+  assert.match(viralRemakeSource, /onClick=\{\(\) => setGenerationSnapshotOpen\(record\)\}/);
+});
+
+test("四列生成结果强化播放入口并将带图标参数靠右排列", () => {
+  assert.match(viralRemakeSource, /className="remake-column-video-play"/);
+  assert.match(viralRemakeSource, /<Clock3 \/>[\s\S]*?\{segment\.duration\.toUpperCase\(\)\}/);
+  assert.match(viralRemakeSource, /<RectangleVertical \/>[\s\S]*?9:16/);
+  assert.match(viralRemakeSource, /<ScanLine \/>[\s\S]*?\{project\.quality\}/);
+  assert.match(viralRemakeStyles, /\.remake-column-video-parameters[\s\S]*?margin-left:\s*auto/);
+  assert.match(viralRemakeStyles, /\.remake-column-video-play[\s\S]*?border-radius:\s*50%/);
+});
+
+test("四列无生成记录时显示统一空状态", () => {
+  assert.match(viralRemakeSource, /unifiedResults\.length === 0[\s\S]*?暂无生成结果记录/);
+  assert.doesNotMatch(viralRemakeSource, /生成故事面板后开放/);
+  assert.match(viralRemakeStyles, /\.remake-column-empty/);
+});
+
+test("四列图片和视频结果使用双列瀑布流且图片等比完整显示", () => {
+  assert.match(viralRemakeStyles, /\.remake-column-results\s*\{[^}]*column-count:\s*2[^}]*column-gap:/);
+  assert.match(viralRemakeStyles, /\.remake-column-results > \.remake-column-video\s*\{[^}]*break-inside:\s*avoid/);
+  assert.match(viralRemakeStyles, /\.remake-column-image-preview img\s*\{[^}]*height:\s*auto[^}]*object-fit:\s*contain/);
+  assert.match(viralRemakeStyles, /\.remake-column-video\s*\{[^}]*min-width:\s*0/);
+  assert.match(viralRemakeStyles, /\.remake-column-video-preview\s*\{[\s\S]*?aspect-ratio:\s*9\s*\/\s*14/);
+  assert.match(viralRemakeStyles, /\.remake-column-video-preview video\s*\{[^}]*object-fit:\s*cover/);
+  assert.match(viralRemakeStyles, /\.remake-column-video-title\s*\{[\s\S]*?height:\s*20px/);
+  assert.match(viralRemakeStyles, /\.remake-column-video-meta\s*\{[\s\S]*?min-height:\s*20px/);
+  assert.match(viralRemakeStyles, /\.remake-column-video-parameters\s*\{[^}]*flex-wrap:\s*wrap/);
+});
+
+test("四列视频画面无按钮内边距并完整铺满预览容器", () => {
+  assert.match(viralRemakeStyles, /\.remake-column-video-preview\s*\{[\s\S]*?padding:\s*0/);
+  assert.match(viralRemakeStyles, /\.remake-column-video-preview\s*\{[\s\S]*?line-height:\s*0/);
+  assert.match(viralRemakeStyles, /\.remake-column-video-preview video\s*\{[^}]*display:\s*block/);
+});
+
+test("四列视频预览底部直角且标题与画面左侧对齐", () => {
+  assert.match(viralRemakeStyles, /\.remake-column-video-preview\s*\{[\s\S]*?border-radius:\s*var\(--radius-control\)\s+var\(--radius-control\)\s+0\s+0/);
+  assert.match(viralRemakeStyles, /\.remake-column-video-title\s*\{[\s\S]*?padding:\s*0/);
+  assert.match(viralRemakeStyles, /\.remake-column-video-title\s*\{[\s\S]*?text-align:\s*left/);
+});
+
+test("四列生成结果超过视口时仅结果列独立滚动", () => {
+  assert.match(viralRemakeSource, /<section className="remake-flow-column remake-results-column">/);
+  assert.match(viralRemakeStyles, /\.remake-results-column\s*\{[\s\S]*?max-height:\s*calc\(100dvh\s*-\s*72px\)/);
+  assert.match(viralRemakeStyles, /\.remake-results-column\s*\{[\s\S]*?overflow-y:\s*auto/);
+  assert.match(viralRemakeStyles, /@media\s*\(max-width:\s*820px\)[\s\S]*?\.remake-results-column\s*\{[\s\S]*?max-height:\s*none[\s\S]*?overflow-y:\s*visible/);
+});
+
+test("四列生成结果滚动区域与其他列保持相同背景", () => {
+  assert.match(viralRemakeStyles, /\.remake-results-column\s*\{[\s\S]*?height:\s*calc\(100dvh\s*-\s*72px\)/);
+  assert.match(viralRemakeStyles, /\.remake-results-column\s*\{[\s\S]*?background:\s*var\(--color-bg-subtle-alt\)/);
+  assert.match(viralRemakeStyles, /@media\s*\(max-width:\s*820px\)[\s\S]*?\.remake-results-column\s*\{[\s\S]*?height:\s*auto/);
+});
+
+test("四列生成记录仅属于当前任务且保存草稿不会清空", () => {
+  assert.match(viralRemakeSource, /const \[structureColumnsSessionKey, setStructureColumnsSessionKey\] = useState\(0\)/);
+  assert.match(viralRemakeSource, /onNew=\{\(\) => \{[\s\S]*?setStructureColumnsSessionKey\(\(value\) => value \+ 1\)/);
+  assert.match(viralRemakeSource, /onSelect=\{\(draft\) => \{[\s\S]*?setStructureColumnsSessionKey\(\(value\) => value \+ 1\)/);
+  assert.match(viralRemakeSource, /key=\{mode === "element-columns" \? elementColumnsSessionKey : mode === "rewrite-columns" \? rewriteColumnsSessionKey : structureColumnsSessionKey\}/);
+  assert.doesNotMatch(viralRemakeSource, /onSave=\{[^}]*setStructureColumnsSessionKey/);
+});
+
+test("四列草稿保存并恢复当前任务的已完成生成记录", () => {
+  const record = {
+    id: "1-segment-1",
+    batchId: 1,
+    segmentId: "segment-1",
+    status: "done",
+    generatedAt: "2026-10-04T06:30:00.000Z",
+    snapshot: { id: "segment-1", title: "片段一", video: "/demo.mp4" },
+    assets: [{ id: "asset-1", role: "图片1", name: "人物.jpg", type: "image", preview: "data:image/png;base64,abc" }],
+  };
+
+  const serialized = serializeProject({ ...createInitialProject(), generationRecords: [record] });
+  const stored = JSON.parse(serialized);
+  const restored = createInitialProject(stored);
+
+  assert.equal(stored.generationRecords[0].assets[0].preview, undefined);
+  assert.deepEqual(restored.generationRecords[0].snapshot, record.snapshot);
+  assert.equal(restored.generationRecords[0].status, "done");
+});
+
+test("四列草稿不会恢复尚未完成的生成记录", () => {
+  const runningRecord = {
+    id: "2-segment-1",
+    batchId: 2,
+    segmentId: "segment-1",
+    status: "running",
+    generatedAt: null,
+    snapshot: { id: "segment-1", title: "片段一" },
+    assets: [],
+  };
+
+  const restored = createInitialProject(JSON.parse(serializeProject({
+    ...createInitialProject(),
+    generationRecords: [runningRecord],
+  })));
+
+  assert.deepEqual(restored.generationRecords, []);
+});
+
+test("四列工作区从当前项目读取并更新生成记录", () => {
+  assert.match(viralRemakeSource, /const generationRecords = project\.generationRecords/);
+  assert.match(viralRemakeSource, /generationRecords:\s*typeof updater === "function" \? updater\(value\.generationRecords\) : updater/);
+  assert.doesNotMatch(viralRemakeSource, /const \[generationRecords, setGenerationRecords\] = useState\(\[\]\)/);
+});
+
+test("四列流程按钮移除魔法棒并始终显示固定动作名称", () => {
+  assert.match(viralRemakeSource, /breakdownStatus === "running" \? "视频拆解中" : "开始视频拆解"/);
+  assert.match(viralRemakeSource, /下一步：替换素材/);
+  assert.match(viralRemakeSource, /下一步：生成结构仿写故事面板/);
+  assert.match(viralRemakeSource, /segmentExtractionLoading \? "正在提取片段\.\.\." : "提取片段"/);
+  assert.doesNotMatch(viralRemakeSource, /重新执行：/);
+  assert.doesNotMatch(viralRemakeSource, /<Sparkles \/>\}\{breakdownStatus/);
+  assert.doesNotMatch(viralRemakeSource, /<Sparkles \/>下一步：生成结构仿写故事面板/);
+  assert.doesNotMatch(viralRemakeSource, /:\s*<Sparkles \/>\}\s*\{segmentExtractionLoading/);
+});
+
+test("四列主流程按钮在非加载状态统一显示右箭头", () => {
+  assert.match(viralRemakeSource, /\{breakdownStatus !== "running" && <ArrowRight \/>\}/);
+  assert.match(viralRemakeSource, /下一步：替换素材 <ArrowRight \/>/);
+  assert.match(viralRemakeSource, /\{storyboardActionLabel\}\s*<ArrowRight \/>/);
+  assert.match(viralRemakeSource, /\{!segmentExtractionLoading && <ArrowRight \/>\}/);
+  assert.match(viralRemakeSource, /批量生成视频\s*<ArrowRight \/>/);
+});
+
+test("四列最新生成记录置顶且播放弹窗只显示标题", () => {
+  assert.match(viralRemakeSource, /setGenerationRecords\(\(current\) => \[\.\.\.newRecords, \.\.\.current\]\)/);
+  assert.match(
+    viralRemakeSource,
+    /<VideoPreviewModal\s+open=\{Boolean\(videoPreview\)\}[\s\S]*?title=\{videoPreview\?\.title \|\| "片段视频"\}\s*\/>/,
+  );
+  assert.doesNotMatch(
+    viralRemakeSource,
+    /title=\{videoPreview\?\.title \|\| "片段视频"\}[\s\S]{0,160}?badge="STRUCTURE"/,
+  );
 });
 
 test("结构仿写 Demo 提供图片4风格参考及专属需求", () => {
@@ -334,7 +859,7 @@ test("所有遮罩弹窗统一使用文字关闭按钮", () => {
     ),
   ].map((match) => match[0]);
 
-  assert.equal(closeButtons.length, 6);
+  assert.equal(closeButtons.length, 10);
   closeButtons.forEach((button) => {
     assert.match(button, />\s*关闭\s*<\/button>/);
     assert.doesNotMatch(button, /<X\s*\/>/);
@@ -375,7 +900,7 @@ test("遮罩关闭按钮位于弹窗底部操作栏且主次按钮等高", () =>
   assert.match(nestedFooterRule, /justify-content:\s*flex-end/);
   assert.equal(
     (`${viralRemakeSource}\n${videoPreviewModalSource}`.match(/className="remake-modal-footer"/g) ?? []).length,
-    6,
+    13,
   );
   assert.match(viralRemakeSource, /const segmentDetailCloseRef = useRef\(null\)/);
   assert.match(viralRemakeSource, /ref=\{segmentDetailCloseRef\}/);
@@ -389,7 +914,7 @@ test("遮罩关闭按钮位于弹窗底部操作栏且主次按钮等高", () =>
   );
   assert.equal(
     (`${viralRemakeSource}\n${videoPreviewModalSource}`.match(/className="remake-segment-modal-header"/g) ?? []).length,
-    2,
+    4,
   );
   assert.match(
     videoPreviewModalSource,

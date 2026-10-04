@@ -151,14 +151,12 @@ test("保存草稿移除本地预览并使用独立键", () => {
   assert.doesNotMatch(storage.value, /base64/);
 });
 
-test("模式选择开放原片仿写并挂载六步工作台", () => {
+test("模式选择由四屏工作台接替旧版原片仿写", () => {
   const viralSource = readFileSync(new URL("./ViralRemake.jsx", import.meta.url), "utf8");
-  const rewriteSource = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
   assert.match(viralSource, /onSelect\(mode\.id\)/);
-  assert.match(viralSource, /mode === "rewrite"/);
-  assert.match(viralSource, /<OriginalRewrite/);
-  assert.match(rewriteSource, /rewriteSteps\.map/);
-  assert.match(rewriteSource, /aria-label="原片仿写项目进度"/);
+  assert.doesNotMatch(viralSource, /mode === "rewrite"/);
+  assert.doesNotMatch(viralSource, /<OriginalRewrite/);
+  assert.match(viralSource, /mode === "structure-columns" \|\| mode === "rewrite-columns"/);
 });
 
 test("上传和原片仿写阶段提供媒体、Demo、拆解内容与大图预览", () => {
@@ -251,7 +249,7 @@ test("重绘和视频阶段提供单段批量生成及原生播放", () => {
 test("模式页说明同步开放状态且 Demo 长需求可继续编辑", () => {
   const viralSource = readFileSync(new URL("./ViralRemake.jsx", import.meta.url), "utf8");
   const rewriteSource = readFileSync(new URL("./OriginalRewrite.jsx", import.meta.url), "utf8");
-  assert.match(viralSource, /当前开放元素替换与原片仿写、结构仿写/);
+  assert.match(viralSource, /当前开放元素替换、结构仿写与原片仿写/);
   assert.ok(rewriteDemo.request.length > 500);
   assert.match(rewriteSource, /const REQUEST_LIMIT = 1000/);
   assert.match(rewriteSource, /maxLength=\{REQUEST_LIMIT\}/);

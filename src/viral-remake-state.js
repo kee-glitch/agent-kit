@@ -1,7 +1,18 @@
 export const STORAGE_KEY = "shulan.viral-remake.project.v1";
 export const STRUCTURE_STORAGE_KEY = "shulan.viral-remake.structure.project.v1";
+export const STRUCTURE_COLUMNS_STORAGE_KEY = "shulan.viral-remake.structure-columns.project.v1";
+export const REWRITE_COLUMNS_STORAGE_KEY = "shulan.viral-remake.rewrite-columns.project.v1";
+export const ELEMENT_COLUMNS_STORAGE_KEY = "shulan.viral-remake.element-columns.project.v1";
 export const getStorageKey = (mode = "element") =>
-  mode === "structure" ? STRUCTURE_STORAGE_KEY : STORAGE_KEY;
+  mode === "structure"
+    ? STRUCTURE_STORAGE_KEY
+    : mode === "element-columns"
+      ? ELEMENT_COLUMNS_STORAGE_KEY
+    : mode === "structure-columns"
+      ? STRUCTURE_COLUMNS_STORAGE_KEY
+      : mode === "rewrite-columns"
+        ? REWRITE_COLUMNS_STORAGE_KEY
+      : STORAGE_KEY;
 export const BOUND_ASSET_ACCEPT = "image/*";
 export const GENERAL_ASSET_ACCEPT = "image/*,audio/*,video/*";
 
@@ -17,6 +28,8 @@ const EMPTY_PROJECT = {
   assetCounters: { image: 3, audio: 0, video: 0 },
   documents: {},
   generation: {},
+  redrawRecords: [],
+  generationRecords: [],
 };
 
 export const ASPECT_RATIOS = [
@@ -30,6 +43,7 @@ export const ASPECT_RATIOS = [
 ];
 
 export const OUTPUT_QUALITIES = ["720P", "1080P"];
+export const COLUMNS_BREAKDOWN_ID = "structure-columns-breakdown";
 
 const MEDIA_LABELS = { image: "图片", audio: "音频", video: "视频" };
 
@@ -255,6 +269,44 @@ export function createInitialProject(saved = {}) {
           ),
         )
       : {};
+  const generationRecords = Array.isArray(value.generationRecords)
+    ? value.generationRecords
+        .filter(
+          (record) =>
+            record &&
+            typeof record === "object" &&
+            record.status === "done" &&
+            typeof record.id === "string" &&
+            typeof record.segmentId === "string" &&
+            record.snapshot &&
+            typeof record.snapshot === "object" &&
+            typeof record.snapshot.id === "string",
+        )
+        .map((record) => ({
+          ...record,
+          snapshot: { ...record.snapshot },
+          assets: Array.isArray(record.assets)
+            ? record.assets.filter((asset) => asset && typeof asset === "object").map((asset) => ({ ...asset }))
+            : [],
+        }))
+    : [];
+  const redrawRecords = Array.isArray(value.redrawRecords)
+    ? value.redrawRecords
+        .filter(
+          (record) =>
+            record &&
+            typeof record === "object" &&
+            typeof record.id === "string" &&
+            typeof record.segmentId === "string" &&
+            typeof record.generatedAt === "string" &&
+            record.snapshot &&
+            typeof record.snapshot === "object" &&
+            typeof record.snapshot.id === "string" &&
+            typeof record.snapshot.redrawPath === "string",
+        )
+        .map((record) => ({ ...record, snapshot: { ...record.snapshot } }))
+        .sort((left, right) => Date.parse(right.generatedAt) - Date.parse(left.generatedAt))
+    : [];
   const assetCounters = { ...EMPTY_PROJECT.assetCounters };
   if (value.assetCounters && typeof value.assetCounters === "object")
     Object.keys(assetCounters).forEach((type) => {
@@ -306,6 +358,8 @@ export function createInitialProject(saved = {}) {
     assetCounters,
     documents,
     generation,
+    redrawRecords,
+    generationRecords,
   };
 }
 
@@ -322,6 +376,26 @@ export function advanceStep(project) {
   if (!canAdvance(project)) return project;
   const step = Math.min(4, project.step + 1);
   return { ...project, step, maxStep: Math.max(project.maxStep, step) };
+}
+
+export function getColumnsBreakdownStatus(project) {
+  return project.generation[COLUMNS_BREAKDOWN_ID] || "idle";
+}
+
+export function startColumnsBreakdown(project) {
+  if (!project.videoName.trim()) return project;
+  return setGenerationStatus(project, COLUMNS_BREAKDOWN_ID, "running");
+}
+
+export function finishColumnsBreakdown(project) {
+  if (getColumnsBreakdownStatus(project) !== "running") return project;
+  return setGenerationStatus(project, COLUMNS_BREAKDOWN_ID, "done");
+}
+
+export function completeWorkflowStep(project, completedStep) {
+  if (completedStep !== project.maxStep || completedStep >= 4) return project;
+  const step = completedStep + 1;
+  return { ...project, step, maxStep: step };
 }
 
 export function updateDocument(project, key, value) {
@@ -443,22 +517,67 @@ export function clearRunningStatuses(project) {
 }
 
 export function serializeProject(project) {
+  const withoutLocalPreview = (asset) => {
+    if (typeof asset.preview !== "string" || !asset.preview.startsWith("data:")) return asset;
+    const { preview, ...savedAsset } = asset;
+    return savedAsset;
+  };
   return JSON.stringify({
     ...project,
-    assets: project.assets.map((asset) => {
-      if (
-        typeof asset.preview !== "string" ||
-        !asset.preview.startsWith("data:")
-      )
-        return asset;
-      const { preview, ...savedAsset } = asset;
-      return savedAsset;
-    }),
+    assets: project.assets.map(withoutLocalPreview),
+    generationRecords: (project.generationRecords || [])
+      .filter((record) => record.status === "done")
+      .map((record) => ({
+        ...record,
+        assets: Array.isArray(record.assets) ? record.assets.map(withoutLocalPreview) : [],
+      })),
   });
+}
+
+export function getPendingRedrawSegmentIds(segments) {
+  return segments
+    .filter((segment) => segment.redrawStatus !== "done" && segment.redrawStatus !== "running")
+    .map((segment) => segment.id);
+}
+
+export function getRedrawReadySegmentIds(segments) {
+  return segments
+    .filter((segment) => segment.redrawStatus === "done")
+    .map((segment) => segment.id);
+}
+
+export function toggleRedrawReadySelection(selectedIds, segments, segmentId) {
+  const segment = segments.find((item) => item.id === segmentId);
+  const next = new Set(selectedIds);
+  if (segment?.redrawStatus !== "done") return { selectedIds: next, blocked: true };
+  if (next.has(segmentId)) next.delete(segmentId);
+  else next.add(segmentId);
+  return { selectedIds: next, blocked: false };
 }
 
 export function persistProject(storage, project, storageKey = STORAGE_KEY) {
   storage.setItem(storageKey, serializeProject(project));
+}
+
+export function formatGenerationTimestamp(value, now = new Date()) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "--";
+
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const dayDifference = Math.round((startOfToday - startOfDate) / 86400000);
+
+  if (dayDifference === 0) {
+    return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+  }
+  if (dayDifference === 1) return "昨天";
+  if (dayDifference > 1 && dayDifference < 7) {
+    return `周${"日一二三四五六"[date.getDay()]}`;
+  }
+  if (date.getFullYear() === now.getFullYear()) {
+    return `${date.getMonth() + 1} 月 ${date.getDate()} 日`;
+  }
+  return `${date.getFullYear()} 年 ${date.getMonth() + 1} 月 ${date.getDate()} 日`;
 }
 
 export function normalizeReferenceAssets(assets) {
